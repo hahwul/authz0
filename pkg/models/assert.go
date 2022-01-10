@@ -1,6 +1,6 @@
 package models
 
-type Policy struct {
+type Assert struct {
 	Type  string `yaml:"type"`
 	Value string `yaml:"value"`
 }

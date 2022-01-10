@@ -26,8 +26,8 @@ func init() {
 	newCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "Template name")
 	newCmd.PersistentFlags().StringVar(&includeURLs, "include-urls", "", "Include URLs from the file")
 	newCmd.PersistentFlags().StringVar(&includeRoles, "include-roles", "", "Include Roles from the file")
-	newCmd.PersistentFlags().StringVar(&successStatus, "policy-success-status", "", "Set success status policy")
-	newCmd.PersistentFlags().StringVar(&failStatus, "policy-fail-status", "", "Set fail status policy")
-	newCmd.PersistentFlags().StringVar(&failRegex, "policy-fail-regex", "", "Set fail regex policy")
-	newCmd.PersistentFlags().IntVar(&failSize, "policy-fail-size", 0, "Set fail size policy")
+	newCmd.PersistentFlags().StringVar(&successStatus, "assert-success-status", "", "Set success status assert")
+	newCmd.PersistentFlags().StringVar(&failStatus, "assert-fail-status", "", "Set fail status assert")
+	newCmd.PersistentFlags().StringVar(&failRegex, "assert-fail-regex", "", "Set fail regex assert")
+	newCmd.PersistentFlags().IntVar(&failSize, "assert-fail-size", 0, "Set fail size assert")
 }
