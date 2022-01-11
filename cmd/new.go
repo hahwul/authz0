@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/hahwul/authz0/pkg/authz0"
+	new "github.com/hahwul/authz0/pkg/new"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,23 @@ var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Generate new template",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("new called")
+		var filename string
+		if len(args) >= 1 {
+			filename = args[0]
+		} else {
+			filename = authz0.DefaultFile
+		}
+		newOptions := new.NewArguments{
+			Filename:            filename,
+			Name:                name,
+			IncludeURLs:         includeURLs,
+			IncludeRoles:        includeRoles,
+			AssertSuccessStatus: successStatus,
+			AssertFailStatus:    failStatus,
+			AssertFailRegex:     failRegex,
+			AssertFailSize:      failSize,
+		}
+		new.Generate(newOptions)
 	},
 }
 
@@ -29,5 +45,5 @@ func init() {
 	newCmd.PersistentFlags().StringVar(&successStatus, "assert-success-status", "", "Set success status assert")
 	newCmd.PersistentFlags().StringVar(&failStatus, "assert-fail-status", "", "Set fail status assert")
 	newCmd.PersistentFlags().StringVar(&failRegex, "assert-fail-regex", "", "Set fail regex assert")
-	newCmd.PersistentFlags().IntVar(&failSize, "assert-fail-size", 0, "Set fail size assert")
+	newCmd.PersistentFlags().IntVar(&failSize, "assert-fail-size", -1, "Set fail size assert")
 }
