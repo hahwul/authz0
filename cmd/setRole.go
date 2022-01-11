@@ -10,7 +10,7 @@ var rolename string
 
 // setRoleCmd represents the setRole command
 var setRoleCmd = &cobra.Command{
-	Use:   "setRole",
+	Use:   "setRole <filename>",
 	Short: "Append Role to Template",
 	Run: func(cmd *cobra.Command, args []string) {
 		role := models.Role{

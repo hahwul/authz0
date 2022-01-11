@@ -14,7 +14,7 @@ var failSize int
 
 // newCmd represents the new command
 var newCmd = &cobra.Command{
-	Use:   "new",
+	Use:   "new <filename>",
 	Short: "Generate new template",
 	Run: func(cmd *cobra.Command, args []string) {
 		var filename string

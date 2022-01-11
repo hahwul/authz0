@@ -11,7 +11,7 @@ var allowRole, denyRole []string
 
 // setUrlCmd represents the setUrl command
 var setUrlCmd = &cobra.Command{
-	Use:   "setUrl",
+	Use:   "setUrl <filename>",
 	Short: "Append URL to Template",
 	Run: func(cmd *cobra.Command, args []string) {
 		url := models.URL{
