@@ -1,12 +1,11 @@
 package new
 
 import (
-	"io/ioutil"
 	"strconv"
 
+	authz0 "github.com/hahwul/authz0/pkg/authz0"
 	models "github.com/hahwul/authz0/pkg/models"
 	utils "github.com/hahwul/authz0/pkg/utils"
-	"gopkg.in/yaml.v2"
 )
 
 type NewArguments struct {
@@ -65,14 +64,7 @@ func Generate(options NewArguments) {
 			template.Roles = append(template.Roles, role)
 		}
 	}
-	yamlData, err := yaml.Marshal(&template)
-	if err != nil {
-		panic(err)
-	}
-	err = ioutil.WriteFile(options.Filename, yamlData, 0644)
-	if err != nil {
-		panic(err)
-	}
+	authz0.TemplateToFile(template, options.Filename)
 }
 
 func setAssert(t, v string) models.Assert {
