@@ -17,3 +17,16 @@ func TemplateToFile(template models.Template, filanem string) {
 		panic(err)
 	}
 }
+
+func FileToTemplate(filename string) models.Template {
+	var template models.Template
+	yamlFile, err := ioutil.ReadFile(filename)
+	if err != nil {
+
+	}
+	err = yaml.Unmarshal(yamlFile, &template)
+	if err != nil {
+		panic(err)
+	}
+	return template
+}
