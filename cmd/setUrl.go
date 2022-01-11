@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var url, method string
+var url, method, contentType, body string
 var allowRole, denyRole []string
 
 // setUrlCmd represents the setUrl command
@@ -29,8 +29,10 @@ var setUrlCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(setUrlCmd)
 
-	setUrlCmd.PersistentFlags().StringVarP(&url, "url", "u", "", "URL")
-	setUrlCmd.PersistentFlags().StringVarP(&method, "method", "X", "", "HTTP Method")
+	setUrlCmd.PersistentFlags().StringVarP(&url, "url", "u", "", "Request URL")
+	setUrlCmd.PersistentFlags().StringVarP(&method, "method", "X", "GET", "Request Method")
+	setUrlCmd.PersistentFlags().StringVarP(&body, "body", "d", "", "Request Body data")
+	setUrlCmd.PersistentFlags().StringVarP(&contentType, "type", "t", "form", "Request Type [form, json]")
 	setUrlCmd.PersistentFlags().StringSliceVar(&allowRole, "allowRole", []string{}, "Allow role names")
 	setUrlCmd.PersistentFlags().StringSliceVar(&denyRole, "denyRole", []string{}, "Deny role names")
 }
