@@ -1,8 +1,9 @@
 package models
 
 type Result struct {
-	Issues []Issue
-}
-
-type Issue struct {
+	URL        string
+	Method     string
+	Assert     bool
+	StatusCode int
+	RespSize   int
 }

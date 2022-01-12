@@ -1,17 +1,55 @@
 package scan
 
-import "github.com/hahwul/authz0/pkg/authz0"
+import (
+	"fmt"
+	"sync"
+
+	"github.com/hahwul/authz0/pkg/authz0"
+	"github.com/hahwul/authz0/pkg/models"
+)
 
 type ScanArguments struct {
-	RoleName string
-	Cookie   string
-	Headers  []string
+	RoleName     string
+	Cookie       string
+	Headers      []string
+	Concurrency  int
+	Delay        int
+	Timeout      int
+	ProxyAddress string
 }
 
 func Run(filename string, arguments ScanArguments) {
 	template := authz0.FileToTemplate(filename)
-	// TODO: Add scanning logic
-	for _, endpoint := range template.URLs {
-		_ = endpoint
+	var results []models.Result
+	var wg sync.WaitGroup
+	queries := make(chan models.URL)
+	for i := 0; i < arguments.Concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			for reqURL := range queries {
+				res, err := sendReq(reqURL, arguments, template)
+				if err != nil {
+
+				}
+				check := checkAssert(res, template.Asserts)
+				result := models.Result{
+					URL:        reqURL.URL,
+					Method:     reqURL.Method,
+					Assert:     check,
+					StatusCode: res.StatusCode,
+					RespSize:   int(res.ContentLength),
+				}
+				results = append(results, result)
+			}
+			wg.Done()
+		}()
 	}
+
+	for _, endpoint := range template.URLs {
+		queries <- endpoint
+	}
+	close(queries)
+	wg.Wait()
+
+	fmt.Println(results)
 }
