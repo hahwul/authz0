@@ -1,0 +1,78 @@
+project_name: authz0
+
+before:
+  hooks:
+  - go mod download
+
+builds:
+  -
+    main: .
+    binary: authz0
+    goos:
+      - windows
+      - linux
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+    goarm:
+      - 6
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: 386
+      - goos: windows
+        goarch: arm
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+changelog:
+  sort: desc
+  filters:
+    exclude:
+    - '^MERGE'
+    - "{{ .Tag }}"
+
+release:
+  github:
+    owner: hahwul
+    name: authz0
+
+brews:
+  -
+    name: authz0
+    tap:
+      owner: hahwul
+      name: homebrew-authz0
+    url_template: "https://github.com/hahwul/authz0/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    commit_author:
+      name: hahwul
+      email: hahwul@gmail.com
+    folder: Formula
+    homepage: "https://www.hahwul.com"
+    description: "Authz0 is an quick and easy automated testing to authorization"
+    test: |
+      system "#{bin}/authz0 version"
+    install: |
+      bin.install "authz0"
+snapcrafts:
+  -
+    name: authz0
+    # Remember you need to `snapcraft login` first.
+    publish: true
+    summary: Authz0 is an quick and easy automated testing to authorization
+    description: Authz0 is an quick and easy automated testing to authorization
+    grade: stable
+    confinement: strict
+    license: MIT
+
+    apps:
+      authz0:
+        plugs: ["home","network"]
