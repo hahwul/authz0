@@ -6,6 +6,7 @@ import (
 
 	"github.com/hahwul/authz0/pkg/authz0"
 	"github.com/hahwul/authz0/pkg/models"
+	"github.com/hahwul/authz0/pkg/utils"
 )
 
 type ScanArguments struct {
@@ -31,13 +32,32 @@ func Run(filename string, arguments ScanArguments) {
 				if err != nil {
 
 				}
+				aar := false
+				adr := false
 				check := checkAssert(res, template.Asserts)
+				if arguments.RoleName != "" {
+					if check {
+						if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
+							aar = true
+						}
+					} else {
+						if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
+							adr = true
+						}
+					}
+				}
+
 				result := models.Result{
-					URL:        reqURL.URL,
-					Method:     reqURL.Method,
-					Assert:     check,
-					StatusCode: res.StatusCode,
-					RespSize:   int(res.ContentLength),
+					URL:             reqURL.URL,
+					Method:          reqURL.Method,
+					RoleName:        arguments.RoleName,
+					AllowRole:       reqURL.AllowRole,
+					DenyRole:        reqURL.DenyRole,
+					Assert:          check,
+					AssertAllowRole: aar,
+					AssertDenyRole:  adr,
+					StatusCode:      res.StatusCode,
+					RespSize:        int(res.ContentLength),
 				}
 				results = append(results, result)
 			}
