@@ -30,8 +30,8 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "authz0",
-	Short: "Authz0 is an easy automated testing to authorization",
-	Long:  `Authz0 is an easy automated testing to authorization`,
+	Short: "Authz0 is an automated authorization test tool",
+	Long:  `Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role.`,
 }
 
 var debug bool

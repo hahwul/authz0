@@ -57,7 +57,7 @@ brews:
       email: hahwul@gmail.com
     folder: Formula
     homepage: "https://www.hahwul.com"
-    description: "Authz0 is an quick and easy automated testing to authorization"
+    description: "Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role."
     test: |
       system "#{bin}/authz0 version"
     install: |
@@ -67,8 +67,8 @@ snapcrafts:
     name: authz0
     # Remember you need to `snapcraft login` first.
     publish: true
-    summary: Authz0 is an quick and easy automated testing to authorization
-    description: Authz0 is an quick and easy automated testing to authorization
+    summary: Authz0 is an automated authorization test tool.
+    description: Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role.
     grade: stable
     confinement: strict
     license: MIT
