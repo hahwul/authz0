@@ -9,9 +9,27 @@
 </p>
 
 
-# authz0
 Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role. 
 
 URLs and Roles are managed as YAML-based templates, which can be automatically created and added through authz0. You can also test based on multiple authentication headers and cookies with a template file created/generated once.
 
 ![authz0-flow](https://user-images.githubusercontent.com/13212227/149371800-d8503685-1c38-4261-902c-81225e8bf89f.png)
+
+## Usage
+```
+Usage:
+  authz0 [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  new         Generate new template
+  scan        Scanning
+  setRole     Append Role to Template
+  setUrl      Append URL to Template
+  version     Show version
+
+Flags:
+      --debug   Print debug log
+  -h, --help    help for authz0
+```
