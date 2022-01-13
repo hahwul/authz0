@@ -12,7 +12,7 @@ import (
 	"github.com/hahwul/authz0/pkg/models"
 )
 
-func checkAssert(res *http.Response, asserts []models.Assert) bool {
+func checkAssert(res *http.Response, asserts []models.Assert, cl int) bool {
 	for _, assert := range asserts {
 		switch assert.Type {
 		case "success-status":
@@ -50,7 +50,7 @@ func checkAssert(res *http.Response, asserts []models.Assert) bool {
 			}
 		case "fail-size":
 			size, _ := strconv.Atoi(assert.Value)
-			if res.ContentLength == int64(size) {
+			if cl == size {
 				return false
 			}
 		}

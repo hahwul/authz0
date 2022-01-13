@@ -7,4 +7,5 @@ type URL struct {
 	Body        string   `yaml:"body"`
 	AllowRole   []string `yaml:"allowRole"`
 	DenyRole    []string `yaml:"denyRole"`
+	Alias       string   `yaml:"alias"`
 }

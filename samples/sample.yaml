@@ -1,0 +1,63 @@
+name: sample template
+roles:
+- name: Admin1
+- name: Admin2
+- name: SuperAdmin
+- name: User
+urls:
+- url: https://www.hahwul.com
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole:
+  - Admin
+  - Admin1
+  - SuperAdmin
+  - User
+  denyRole: []
+  alias: "Main page"
+- url: https://www.hahwul.com/about/
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole:
+  - Admin
+  - Admin1
+  - SuperAdmin
+  denyRole: []
+  alias: "About page"
+- url: https://www.hahwul.com/44444
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole: []
+  denyRole:
+  - User
+  alias: "Test1"
+- url: https://www.hahwul.com/44
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole: []
+  denyRole:
+  - User
+  alias: "Test2"
+- url: https://www.hahwul.com/4676664
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole: []
+  denyRole:
+  - User
+  alias: "Test3"
+- url: https://www.hahwul.com/archive/
+  method: GET
+  contentType: ""
+  body: ""
+  allowRole: []
+  denyRole:
+  - User
+  alias: "Test4"
+asserts:
+- type: success-status
+  value: "200,201,202,204"

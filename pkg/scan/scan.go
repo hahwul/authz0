@@ -1,12 +1,14 @@
 package scan
 
 import (
-	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/hahwul/authz0/pkg/authz0"
+	"github.com/hahwul/authz0/pkg/logger"
 	"github.com/hahwul/authz0/pkg/models"
 	"github.com/hahwul/authz0/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type ScanArguments struct {
@@ -19,30 +21,63 @@ type ScanArguments struct {
 	ProxyAddress string
 }
 
-func Run(filename string, arguments ScanArguments) {
-	template := authz0.FileToTemplate(filename)
+func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 	var results []models.Result
 	var wg sync.WaitGroup
+	log := logger.GetLogger(debug)
 	queries := make(chan models.URL)
+	template := authz0.FileToTemplate(filename)
+	log.Info("loaded testing template: " + template.Name)
+	if arguments.RoleName != "" {
+		log.Info("authorization test about the '" + arguments.RoleName + "' role")
+	}
 	for i := 0; i < arguments.Concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			for reqURL := range queries {
-				res, err := sendReq(reqURL, arguments, template)
+				res, cl, err := sendReq(reqURL, arguments, template)
 				if err != nil {
-
+					log.Debug("sendReq Error")
+					log.Trace(err)
 				}
 				aar := false
 				adr := false
-				check := checkAssert(res, template.Asserts)
+				rlt := "O"
+				check := checkAssert(res, template.Asserts, cl)
 				if arguments.RoleName != "" {
 					if check {
-						if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
-							aar = true
+						if len(reqURL.AllowRole) > 0 {
+							if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
+								aar = true
+								rlt = "O"
+							} else {
+								rlt = "X"
+							}
+						}
+						if len(reqURL.DenyRole) > 0 {
+							if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
+								adr = false
+								rlt = "X"
+							} else {
+								rlt = "O"
+							}
 						}
 					} else {
-						if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
-							adr = true
+						if len(reqURL.AllowRole) > 0 {
+							if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
+								aar = true
+								rlt = "X"
+							} else {
+								rlt = "O"
+							}
+						}
+						if len(reqURL.DenyRole) > 0 {
+							if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
+								adr = true
+								rlt = "O"
+							} else {
+								rlt = "X"
+							}
 						}
 					}
 				}
@@ -57,19 +92,45 @@ func Run(filename string, arguments ScanArguments) {
 					AssertAllowRole: aar,
 					AssertDenyRole:  adr,
 					StatusCode:      res.StatusCode,
-					RespSize:        int(res.ContentLength),
+					RespSize:        cl,
+					Alias:           reqURL.Alias,
+					Result:          rlt,
 				}
 				results = append(results, result)
+				logField := logrus.Fields{
+					"status": result.StatusCode,
+				}
+				if result.Alias != "" {
+					logField["alias"] = result.Alias
+				}
+				if result.AssertAllowRole {
+					logField["aar"] = "matched: allow"
+				}
+				if result.AssertDenyRole {
+					logField["adr"] = "matched: deny"
+				}
+
+				if check {
+					log.WithFields(logField).Info(result.Method + " " + result.URL)
+				} else {
+					log.WithFields(logField).Warn(result.Method + " " + result.URL)
+				}
+				log.WithFields(logrus.Fields{
+					"status": result.StatusCode,
+					"alias":  result.Alias,
+					"aar":    aar,
+					"adr":    adr,
+					"size":   cl,
+				}).Debug("")
 			}
 			wg.Done()
 		}()
 	}
-
+	log.Info("targets:  " + strconv.Itoa(len(template.URLs)) + " URLs")
 	for _, endpoint := range template.URLs {
 		queries <- endpoint
 	}
 	close(queries)
 	wg.Wait()
-
-	fmt.Println(results)
+	return results
 }

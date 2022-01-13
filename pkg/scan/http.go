@@ -12,7 +12,7 @@ import (
 	"github.com/hahwul/authz0/pkg/models"
 )
 
-func sendReq(req models.URL, args ScanArguments, template models.Template) (*http.Response, error) {
+func sendReq(req models.URL, args ScanArguments, template models.Template) (*http.Response, int, error) {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -61,8 +61,8 @@ func sendReq(req models.URL, args ScanArguments, template models.Template) (*htt
 
 	resp, err := client.Do(r)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
-	return resp, nil
+	return resp, int(resp.ContentLength), nil
 }

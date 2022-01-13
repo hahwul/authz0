@@ -11,4 +11,6 @@ type Result struct {
 	AssertDenyRole  bool
 	StatusCode      int
 	RespSize        int
+	Alias           string
+	Result          string
 }

@@ -34,6 +34,8 @@ var rootCmd = &cobra.Command{
 	Long:  `Authz0 is an easy automated testing to authorization`,
 }
 
+var debug bool
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -44,5 +46,5 @@ func Execute() {
 }
 
 func init() {
-
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Print debug log")
 }

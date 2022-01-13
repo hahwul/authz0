@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/hahwul/authz0/pkg/authz0"
+	"github.com/hahwul/authz0/pkg/logger"
 	new "github.com/hahwul/authz0/pkg/new"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,7 @@ var newCmd = &cobra.Command{
 	Short: "Generate new template",
 	Run: func(cmd *cobra.Command, args []string) {
 		var filename string
+		log := logger.GetLogger(debug)
 		if len(args) >= 1 {
 			filename = args[0]
 		} else {
@@ -34,6 +36,7 @@ var newCmd = &cobra.Command{
 			AssertFailSize:      failSize,
 		}
 		new.Generate(newOptions)
+		log.WithField("filename", filename).Info("generate template")
 	},
 }
 
