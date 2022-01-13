@@ -4,6 +4,7 @@
 </h1>
 <p align="center">
   <a href=""><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat"></a>
+  <a href="https://goreportcard.com/report/github.com/hahwul/authz0"><img src="https://goreportcard.com/badge/github.com/hahwul/authz0"></a>
   <a href="https://github.com/hahwul/authz0/actions/workflows/go.yml"><img src="https://github.com/hahwul/authz0/actions/workflows/go.yml/badge.svg"></a>
   <a href="https://twitter.com/intent/follow?screen_name=hahwul"><img src="https://img.shields.io/twitter/follow/hahwul?style=flat&logo=twitter"></a>
 </p>
