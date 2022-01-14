@@ -2,6 +2,7 @@ package scan
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/hahwul/authz0/pkg/authz0"
@@ -99,34 +100,61 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 					Result:          rlt,
 				}
 				results = append(results, result)
-				logField := logrus.Fields{
-					"status": result.StatusCode,
-				}
-				if arguments.RoleName != "" {
-					logField["rlt"] = "role-match: " + rlt
-				}
+				iLog := log.WithField("index", "#"+strconv.Itoa(reqURL.Index))
 				if result.Alias != "" {
-					logField["alias"] = result.Alias
+					iLog.Info("check '" + result.Alias + "'")
+				} else {
+					iLog.Info("check '" + result.URL + "'")
 				}
+				uLog := iLog.WithFields(logrus.Fields{
+					"url":  result.Method + " " + result.URL,
+					"type": "assertion",
+				})
+				uLog.Info("response code: " + strconv.Itoa(result.StatusCode))
+				if result.Assert {
+					uLog.Info("assertion: hit")
+				} else {
+					if arguments.RoleName == "" {
+						if check {
+							uLog.Info("assertion: fail")
+						} else {
+							uLog.WithField("assertion", "assertion: fail").Warn("found assert fail")
+						}
+					} else {
+						uLog.Info("assertion: fail")
+					}
+				}
+				rLog := iLog.WithFields(logrus.Fields{
+					"type": "role-test",
+				})
+				ar := strings.Join(result.AllowRole, ",")
+				dr := strings.Join(result.DenyRole, ",")
+				if ar == "" {
+					ar = "<allow-all>"
+				}
+				if dr == "" {
+					dr = "<not-deny>"
+				}
+				rLog.Info("allow-role: " + ar)
+				rLog.Info("deny-role: " + dr)
+				if arguments.RoleName != "" {
+					if !rltValue {
+						rLog.WithFields(logrus.Fields{
+							"role-match": "role-match: " + rlt,
+							"role-name":  "role-name: " + result.RoleName,
+						}).Warn("found role mismatch")
+					} else {
+						rLog.Info("role-match: " + rlt + " (" + result.RoleName + ")")
+					}
+				}
+
 				if result.AssertAllowRole {
-					logField["aar"] = "matched: allow"
+					rLog.Info("matched: allow")
 				}
 				if result.AssertDenyRole {
-					logField["adr"] = "matched: deny"
+					rLog.Info("matched: deny")
 				}
-				if arguments.RoleName != "" {
-					if rltValue {
-						log.WithFields(logField).Info(result.Method + " " + result.URL)
-					} else {
-						log.WithFields(logField).Warn(result.Method + " " + result.URL)
-					}
-				} else {
-					if check {
-						log.WithFields(logField).Info(result.Method + " " + result.URL)
-					} else {
-						log.WithFields(logField).Warn(result.Method + " " + result.URL)
-					}
-				}
+
 				log.WithFields(logrus.Fields{
 					"status": result.StatusCode,
 					"alias":  result.Alias,
@@ -139,7 +167,8 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 		}()
 	}
 	log.Info("targets:  " + strconv.Itoa(len(template.URLs)) + " URLs")
-	for _, endpoint := range template.URLs {
+	for index, endpoint := range template.URLs {
+		endpoint.Index = index
 		queries <- endpoint
 	}
 	close(queries)

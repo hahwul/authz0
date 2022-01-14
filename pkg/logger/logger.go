@@ -9,7 +9,7 @@ func GetLogger(debug bool) *logrus.Logger {
 	log := logrus.New()
 	log.SetFormatter(&nested.Formatter{
 		HideKeys:    true,
-		FieldsOrder: []string{"status", "size", "alias"},
+		FieldsOrder: []string{"index", "type", "status", "role", "alias", "url"},
 	})
 	if debug {
 		log.Level = logrus.DebugLevel
