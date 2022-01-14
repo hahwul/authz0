@@ -22,11 +22,16 @@ type ScanArguments struct {
 	ProxyAddress string
 }
 
+type Query struct {
+	Index int
+	Query models.URL
+}
+
 func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 	var results []models.Result
 	var wg sync.WaitGroup
 	log := logger.GetLogger(debug)
-	queries := make(chan models.URL)
+	queries := make(chan Query)
 	template := authz0.FileToTemplate(filename)
 	log.Info("loaded testing template: " + template.Name)
 	if arguments.RoleName != "" {
@@ -35,7 +40,8 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 	for i := 0; i < arguments.Concurrency; i++ {
 		wg.Add(1)
 		go func() {
-			for reqURL := range queries {
+			for query := range queries {
+				reqURL := query.Query
 				res, cl, err := sendReq(reqURL, arguments, template)
 				if err != nil {
 					log.Debug("sendReq Error")
@@ -100,7 +106,7 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 					Result:          rlt,
 				}
 				results = append(results, result)
-				iLog := log.WithField("index", "#"+strconv.Itoa(reqURL.Index))
+				iLog := log.WithField("index", "#"+strconv.Itoa(query.Index))
 				if result.Alias != "" {
 					iLog.Info("check '" + result.Alias + "'")
 				} else {
@@ -168,8 +174,11 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 	}
 	log.Info("targets:  " + strconv.Itoa(len(template.URLs)) + " URLs")
 	for index, endpoint := range template.URLs {
-		endpoint.Index = index
-		queries <- endpoint
+		q := Query{
+			Index: index,
+			Query: endpoint,
+		}
+		queries <- q
 	}
 	close(queries)
 	wg.Wait()
