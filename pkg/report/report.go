@@ -37,6 +37,14 @@ func PrintTableReport(data []models.Result, t string) {
 
 	issue := 0
 	for _, v := range data {
+		ar := strings.Join(v.AllowRole, ",")
+		dr := strings.Join(v.DenyRole, ",")
+		if ar == "" {
+			ar = "<ALLOWED-ALL>"
+		}
+		if dr == "" {
+			dr = "<NOT-DENIED>"
+		}
 		line := []string{
 			v.Alias,
 			v.Method,
@@ -44,8 +52,8 @@ func PrintTableReport(data []models.Result, t string) {
 			strconv.Itoa(v.StatusCode),
 			strconv.FormatBool(v.Assert),
 			v.RoleName,
-			strings.Join(v.AllowRole, ","),
-			strings.Join(v.DenyRole, ","),
+			ar,
+			dr,
 			strconv.FormatBool(v.AssertAllowRole),
 			strconv.FormatBool(v.AssertDenyRole),
 			v.Result,
@@ -65,8 +73,10 @@ func PrintTableReport(data []models.Result, t string) {
 				tablewriter.Colors{},
 				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold, tablewriter.BgBlackColor},
 			})
+		} else {
+			table.Append(line)
 		}
-		table.Append(line)
+
 	}
 	table.SetCaption(true, "Found "+strconv.Itoa(issue)+" Issue")
 	table.Render()

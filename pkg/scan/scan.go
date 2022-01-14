@@ -43,42 +43,44 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 				aar := false
 				adr := false
 				rlt := "O"
+				rltValue := true
 				check := checkAssert(res, template.Asserts, cl)
 				if arguments.RoleName != "" {
 					if check {
 						if len(reqURL.AllowRole) > 0 {
 							if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
 								aar = true
-								rlt = "O"
+								rltValue = rltValue && true
 							} else {
-								rlt = "X"
+								rltValue = rltValue && false
 							}
 						}
 						if len(reqURL.DenyRole) > 0 {
 							if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
 								adr = false
-								rlt = "X"
+								rltValue = rltValue && false
 							} else {
-								rlt = "O"
+								rltValue = rltValue && true
 							}
 						}
 					} else {
 						if len(reqURL.AllowRole) > 0 {
 							if utils.ContainsFromArray(reqURL.AllowRole, arguments.RoleName) {
 								aar = true
-								rlt = "X"
+								rltValue = rltValue && false
 							} else {
-								rlt = "O"
+								rltValue = rltValue && true
 							}
 						}
 						if len(reqURL.DenyRole) > 0 {
 							if utils.ContainsFromArray(reqURL.DenyRole, arguments.RoleName) {
 								adr = true
-								rlt = "O"
-							} else {
-								rlt = "X"
+								rltValue = rltValue && true
 							}
 						}
+					}
+					if !rltValue {
+						rlt = "X"
 					}
 				}
 
@@ -100,6 +102,9 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 				logField := logrus.Fields{
 					"status": result.StatusCode,
 				}
+				if arguments.RoleName != "" {
+					logField["rlt"] = "role-match: " + rlt
+				}
 				if result.Alias != "" {
 					logField["alias"] = result.Alias
 				}
@@ -109,11 +114,18 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 				if result.AssertDenyRole {
 					logField["adr"] = "matched: deny"
 				}
-
-				if check {
-					log.WithFields(logField).Info(result.Method + " " + result.URL)
+				if arguments.RoleName != "" {
+					if rltValue {
+						log.WithFields(logField).Info(result.Method + " " + result.URL)
+					} else {
+						log.WithFields(logField).Warn(result.Method + " " + result.URL)
+					}
 				} else {
-					log.WithFields(logField).Warn(result.Method + " " + result.URL)
+					if check {
+						log.WithFields(logField).Info(result.Method + " " + result.URL)
+					} else {
+						log.WithFields(logField).Warn(result.Method + " " + result.URL)
+					}
 				}
 				log.WithFields(logrus.Fields{
 					"status": result.StatusCode,
