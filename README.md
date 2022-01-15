@@ -14,7 +14,7 @@ Authz0 is an automated authorization test tool. Unauthorized access can be ident
 
 URLs and Roles are managed as YAML-based templates, which can be automatically created and added through authz0. You can also test based on multiple authentication headers and cookies with a template file created/generated once.
 
-![authz0-flow](https://user-images.githubusercontent.com/13212227/149371800-d8503685-1c38-4261-902c-81225e8bf89f.png)
+![authz0](https://user-images.githubusercontent.com/13212227/149623002-5122d9dc-d1de-4453-9002-d5990e2a2965.jpg)
 
 ## Usage
 ```
