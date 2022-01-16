@@ -17,11 +17,11 @@ URLs and Roles are managed as YAML-based templates, which can be automatically c
 ![authz0-2](https://user-images.githubusercontent.com/13212227/149650143-a34d8826-f272-4aca-b9a7-323de268cd52.jpg)
 
 ## 🛸 Key Features
-* Generate scan template
+* Generate scan template `$ authz0 new`
     * Include URLs
     * Include Roles
-* Easy modify scan template (Role, URL)
-* Scanning authorization(access-control) with template
+* Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole`
+* Scanning authorization(access-control) with template `$ authz0 scan`
 
 ## 🚀 Installation
 *go install*
