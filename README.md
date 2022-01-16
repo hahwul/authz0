@@ -116,6 +116,7 @@ Flags:
   -H, --header strings    Headers of this test case
   -h, --help              help for scan
       --no-report         Not print report (only log mode)
+  -o, --output string     Save result to output file
       --proxy string      Proxy address
   -r, --rolename string   Role name of this test case
       --timeout int       Second of Timeout to HTTP Request (default 10)
