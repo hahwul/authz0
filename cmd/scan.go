@@ -50,6 +50,7 @@ var scanCmd = &cobra.Command{
 			}
 			if !noReport {
 				log.Info("generating report..")
+				rlog := log.WithField("type", "reporter")
 				if resultFormat == "json" {
 					e, _ := json.Marshal(&results)
 					r, _ := report.PrettyJSON(e)
@@ -57,15 +58,15 @@ var scanCmd = &cobra.Command{
 					if resultFile != "" {
 						err := ioutil.WriteFile(resultFile, r, 0644)
 						if err != nil {
-							log.Error("file write error")
+							rlog.Error("file write error")
 						} else {
-							log.Info("output file write success")
+							rlog.Info("output file write success")
 						}
 					}
 				} else {
-					log.Info("assert & role reports")
+					rlog.Info("assert & role reports")
 					report.PrintTableReport(results, resultFormat)
-					log.Info("url indexes")
+					rlog.Info("url indexes")
 					report.PrintTableURLs(results, resultFormat)
 				}
 			}
