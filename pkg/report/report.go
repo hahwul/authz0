@@ -3,18 +3,31 @@ package report
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/hahwul/authz0/pkg/models"
 	"github.com/olekukonko/tablewriter"
+	"gopkg.in/yaml.v2"
 )
 
 func PrettyJSON(b []byte) ([]byte, error) {
 	var out bytes.Buffer
 	err := json.Indent(&out, b, "", "  ")
 	return out.Bytes(), err
+}
+
+func WriteYAMLReportToFile(data []models.Result, filename string) {
+	yamlData, err := yaml.Marshal(&data)
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile(filename, yamlData, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func PrintTableReport(data []models.Result, t string) {

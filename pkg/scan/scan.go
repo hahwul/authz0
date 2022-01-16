@@ -114,7 +114,7 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 				}
 				uLog := iLog.WithFields(logrus.Fields{
 					"url":  result.Method + " " + result.URL,
-					"type": "assertion",
+					"type": "assert",
 				})
 				uLog.Info("response code: " + strconv.Itoa(result.StatusCode))
 				if result.Assert {

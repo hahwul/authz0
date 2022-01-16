@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strconv"
 
 	"github.com/hahwul/authz0/pkg/logger"
 	"github.com/hahwul/authz0/pkg/report"
@@ -10,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cookie, scanRolename, proxyAddress, resultFormat string
+var cookie, scanRolename, proxyAddress, resultFormat, resultFile string
 var headers []string
 var concurrency, delay, timeout int
 var noReport bool
@@ -34,21 +36,43 @@ var scanCmd = &cobra.Command{
 		if len(args) >= 1 {
 			log.Info("start scan 🚀")
 			results := scan.Run(args[0], scanArguments, debug)
-			log.Info("complete scan 🎉")
-
+			log.Info("complete scan")
+			rcount := 0
+			for _, r := range results {
+				if r.Result == "X" {
+					rcount = rcount + 1
+				}
+			}
+			if rcount > 0 {
+				log.Info("found " + strconv.Itoa(rcount) + " issues")
+			} else {
+				log.Info("not found issues")
+			}
 			if !noReport {
-				log.Info("generate report 🔖")
+				log.Info("generating report..")
 				if resultFormat == "json" {
 					e, _ := json.Marshal(&results)
 					r, _ := report.PrettyJSON(e)
 					fmt.Println(string(r))
+					if resultFile != "" {
+						err := ioutil.WriteFile(resultFile, r, 0644)
+						if err != nil {
+							log.Error("file write error")
+						} else {
+							log.Info("output file write success")
+						}
+					}
 				} else {
 					report.PrintTableReport(results, resultFormat)
+					if resultFile != "" {
+						report.WriteYAMLReportToFile(results, resultFile)
+					}
 				}
 			}
 		} else {
 			log.Fatal("please input template file")
 		}
+		log.Info("finish 🎉")
 	},
 }
 
@@ -58,6 +82,7 @@ func init() {
 	scanCmd.PersistentFlags().StringVarP(&scanRolename, "rolename", "r", "", "Role name of this test case")
 	scanCmd.PersistentFlags().StringVar(&proxyAddress, "proxy", "", "Proxy address")
 	scanCmd.PersistentFlags().StringVarP(&resultFormat, "format", "f", "", "Result format (plain, json, markdown)")
+	scanCmd.PersistentFlags().StringVarP(&resultFile, "output", "o", "", "Save result to output file")
 	scanCmd.PersistentFlags().StringSliceVarP(&headers, "header", "H", []string{}, "Headers of this test case")
 	scanCmd.PersistentFlags().IntVar(&concurrency, "concurrency", 1, "Number of URLs to be test in parallel")
 	scanCmd.PersistentFlags().IntVar(&delay, "delay", 0, "Second of Delay to HTTP Request")
