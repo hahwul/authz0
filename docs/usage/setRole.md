@@ -5,4 +5,11 @@ parent: Usage
 nav_order: 3
 ---
 
-## About this tool
+```
+Usage:
+  authz0 setRole <filename> [flags]
+
+Flags:
+  -h, --help          help for setRole
+  -n, --name string   Role name
+```
