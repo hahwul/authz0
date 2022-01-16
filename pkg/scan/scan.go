@@ -104,6 +104,7 @@ func Run(filename string, arguments ScanArguments, debug bool) []models.Result {
 					RespSize:        cl,
 					Alias:           reqURL.Alias,
 					Result:          rlt,
+					Index:           "#" + strconv.Itoa(query.Index),
 				}
 				results = append(results, result)
 				iLog := log.WithField("index", "#"+strconv.Itoa(query.Index))

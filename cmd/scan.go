@@ -63,10 +63,10 @@ var scanCmd = &cobra.Command{
 						}
 					}
 				} else {
+					log.Info("assert & role reports")
 					report.PrintTableReport(results, resultFormat)
-					if resultFile != "" {
-						report.WriteYAMLReportToFile(results, resultFile)
-					}
+					log.Info("url indexes")
+					report.PrintTableURLs(results, resultFormat)
 				}
 			}
 		} else {

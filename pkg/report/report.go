@@ -32,13 +32,13 @@ func WriteYAMLReportToFile(data []models.Result, filename string) {
 
 func PrintTableReport(data []models.Result, t string) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Alias", "Method", "URL", "Code", "Assert", "Role", "Allow-Role", "Deny-Role", "Allow", "Deny", "Result"})
+	table.SetHeader([]string{"", "Alias", "Assert", "Role", "Allow-Role", "Deny-Role", "Allow", "Deny", "Result"})
 	if t == "markdown" {
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 		table.SetCenterSeparator("|")
 	}
 	table.SetHeaderColor(
-		nil, nil, nil, nil,
+		nil, nil,
 		tablewriter.Colors{tablewriter.BgCyanColor, tablewriter.FgWhiteColor},
 		nil,
 		tablewriter.Colors{tablewriter.BgCyanColor, tablewriter.FgWhiteColor},
@@ -59,10 +59,8 @@ func PrintTableReport(data []models.Result, t string) {
 			dr = "<NOT-DENIED>"
 		}
 		line := []string{
+			v.Index,
 			v.Alias,
-			v.Method,
-			v.URL,
-			strconv.Itoa(v.StatusCode),
 			strconv.FormatBool(v.Assert),
 			v.RoleName,
 			ar,
@@ -82,8 +80,6 @@ func PrintTableReport(data []models.Result, t string) {
 				tablewriter.Colors{},
 				tablewriter.Colors{},
 				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
 				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold, tablewriter.BgBlackColor},
 			})
 		} else {
@@ -91,6 +87,37 @@ func PrintTableReport(data []models.Result, t string) {
 		}
 
 	}
-	table.SetCaption(true, "Found "+strconv.Itoa(issue)+" Issue")
+	table.Render()
+}
+
+func PrintTableURLs(data []models.Result, t string) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"", "Method", "URL", "CODE"})
+	if t == "markdown" {
+		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+		table.SetCenterSeparator("|")
+	}
+
+	issue := 0
+	for _, v := range data {
+		line := []string{
+			v.Index,
+			v.Method,
+			v.URL,
+			strconv.Itoa(v.StatusCode),
+		}
+		if v.Result == "X" {
+			issue = issue + 1
+			table.Rich(line, []tablewriter.Colors{
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+				tablewriter.Colors{},
+			})
+		} else {
+			table.Append(line)
+		}
+
+	}
 	table.Render()
 }

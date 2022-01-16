@@ -13,4 +13,5 @@ type Result struct {
 	RespSize        int
 	Alias           string
 	Result          string
+	Index           string
 }
