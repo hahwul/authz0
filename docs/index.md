@@ -15,7 +15,6 @@ nav_order: 1
   <a href="https://twitter.com/intent/follow?screen_name=hahwul"><img src="https://img.shields.io/twitter/follow/hahwul?style=flat&logo=twitter"></a>
 </p>
 
-
 Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role. 
 
 URLs and Roles are managed as YAML-based templates, which can be automatically created and added through authz0. You can also test based on multiple authentication headers and cookies with a template file created/generated once.
