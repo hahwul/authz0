@@ -16,6 +16,18 @@ URLs and Roles are managed as YAML-based templates, which can be automatically c
 
 ![authz0-2](https://user-images.githubusercontent.com/13212227/149650143-a34d8826-f272-4aca-b9a7-323de268cd52.jpg)
 
+## Installation
+*go install*
+```
+go install github.com/hahwul/authz0@latest
+```
+
+*homebrew*
+```
+brew tap hahwul/authz0
+brew install authz0
+```
+
 ## Usage
 ```
 Usage:
