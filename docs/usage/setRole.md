@@ -13,3 +13,9 @@ Flags:
   -h, --help          help for setRole
   -n, --name string   Role name
 ```
+
+```
+authz0 setRole admin.yaml -n superadmin
+authz0 setRole admin.yaml -n admin
+authz0 setRole admin.yaml -n qa
+```

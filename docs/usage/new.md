@@ -19,3 +19,7 @@ Flags:
       --include-urls string            Include URLs from the file
   -n, --name string                    Template name
 ```
+
+```
+authz0 new admin.yaml -n test-admin --include-urls ./urls.txt --assert-fail-regex "permission denied"
+```
