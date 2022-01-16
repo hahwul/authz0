@@ -74,13 +74,13 @@ func PrintTableReport(data []models.Result, t string) {
 			table.Rich(line, []tablewriter.Colors{
 				tablewriter.Colors{},
 				tablewriter.Colors{},
+				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold},
 				tablewriter.Colors{},
 				tablewriter.Colors{},
 				tablewriter.Colors{},
 				tablewriter.Colors{},
 				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold, tablewriter.BgBlackColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold},
 			})
 		} else {
 			table.Append(line)
