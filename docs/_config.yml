@@ -1,0 +1,26 @@
+title: Authz0
+description: >-
+        Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URL and Role.
+baseurl: "/"
+url: "https://authz0.hahwul.com"
+github_username:  hahwul
+github_repo: authz0
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+markdown: kramdown
+color_scheme: dark
+theme: just-the-docs
+domain: authz0.hahwul.com
+aux_links:
+  "GitHub project":
+          - "https://github.com/hahwul/authz0"
+heading_anchors: true
+footer_content: "<a href='https://www.hahwul.com'>HAHWUL</a>"
+last_edit_timestamp: true
