@@ -16,7 +16,7 @@ search:
   button: false
 markdown: kramdown
 color_scheme: dark
-theme: just-the-docs
+remote_theme: pmarsceill/just-the-docs
 domain: authz0.hahwul.com
 aux_links:
   "GitHub project":
