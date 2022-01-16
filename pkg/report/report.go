@@ -32,7 +32,7 @@ func WriteYAMLReportToFile(data []models.Result, filename string) {
 
 func PrintTableReport(data []models.Result, t string) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"", "Alias", "Assert", "Role", "Allow-Role", "Deny-Role", "Allow", "Deny", "Result"})
+	table.SetHeader([]string{"", "Alias", "Assert", "Role", "Allow-Role", "Deny-Role", "Allow", "Deny", "RLT"})
 	if t == "markdown" {
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 		table.SetCenterSeparator("|")
@@ -67,25 +67,24 @@ func PrintTableReport(data []models.Result, t string) {
 			dr,
 			strconv.FormatBool(v.AssertAllowRole),
 			strconv.FormatBool(v.AssertDenyRole),
-			v.Result,
+			" " + v.Result + " ",
 		}
 		if v.Result == "X" {
 			issue = issue + 1
 			table.Rich(line, []tablewriter.Colors{
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{},
-				tablewriter.Colors{tablewriter.FgHiRedColor, tablewriter.Bold},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.FgHiRedColor},
+				tablewriter.Colors{tablewriter.BgRedColor, tablewriter.FgWhiteColor},
 			})
 		} else {
 			table.Append(line)
 		}
-
 	}
 	table.Render()
 }
