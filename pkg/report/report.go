@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -31,6 +32,13 @@ func WriteYAMLReportToFile(data []models.Result, filename string) {
 }
 
 func PrintTableReport(data []models.Result, t string) {
+	results := data
+	sort.Slice(results, func(i, j int) bool {
+		iIndex, _ := strconv.Atoi(strings.ReplaceAll(results[i].Index, "#", ""))
+		jIndex, _ := strconv.Atoi(strings.ReplaceAll(results[j].Index, "#", ""))
+		return iIndex < jIndex
+	})
+
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"", "Alias", "Assert", "Role", "Allow-Role", "Deny-Role", "Allow", "Deny", "RLT"})
 	if t == "markdown" {
