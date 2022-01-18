@@ -10,8 +10,8 @@ import (
 var name string
 var includeURLs, includeRoles string
 var successStatus string
-var failStatus, failRegex string
-var failSize int
+var failRegex string
+var failStatus, failSize []int
 
 // newCmd represents the new command
 var newCmd = &cobra.Command{
@@ -46,7 +46,7 @@ func init() {
 	newCmd.PersistentFlags().StringVar(&includeURLs, "include-urls", "", "Include URLs from the file")
 	newCmd.PersistentFlags().StringVar(&includeRoles, "include-roles", "", "Include Roles from the file")
 	newCmd.PersistentFlags().StringVar(&successStatus, "assert-success-status", "", "Set success status assert")
-	newCmd.PersistentFlags().StringVar(&failStatus, "assert-fail-status", "", "Set fail status assert")
+	newCmd.PersistentFlags().IntSliceVar(&failStatus, "assert-fail-status", []int{}, "Set fail status assert (support duplicate flag)")
 	newCmd.PersistentFlags().StringVar(&failRegex, "assert-fail-regex", "", "Set fail regex assert")
-	newCmd.PersistentFlags().IntVar(&failSize, "assert-fail-size", -1, "Set fail size assert")
+	newCmd.PersistentFlags().IntSliceVar(&failSize, "assert-fail-size", []int{}, "Set fail size assert (support duplicate flag)")
 }

@@ -41,6 +41,6 @@ func init() {
 	setUrlCmd.PersistentFlags().StringVarP(&body, "body", "d", "", "Request Body data")
 	setUrlCmd.PersistentFlags().StringVarP(&contentType, "type", "t", "form", "Request Type [form, json]")
 	setUrlCmd.PersistentFlags().StringVarP(&alias, "alias", "a", "", "Alias")
-	setUrlCmd.PersistentFlags().StringSliceVar(&allowRole, "allowRole", []string{}, "Allow role names")
-	setUrlCmd.PersistentFlags().StringSliceVar(&denyRole, "denyRole", []string{}, "Deny role names")
+	setUrlCmd.PersistentFlags().StringSliceVar(&allowRole, "allowRole", []string{}, "Allow role names (support duplicate flag)")
+	setUrlCmd.PersistentFlags().StringSliceVar(&denyRole, "denyRole", []string{}, "Deny role names (support duplicate flag)")
 }

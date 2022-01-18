@@ -25,12 +25,9 @@ func checkAssert(res *http.Response, asserts []models.Assert, cl int) bool {
 			}
 
 		case "fail-status":
-			vArr := strings.Split(assert.Value, ",")
-			for _, v := range vArr {
-				code, _ := strconv.Atoi(v)
-				if res.StatusCode == code {
-					return false
-				}
+			code, _ := strconv.Atoi(assert.Value)
+			if res.StatusCode == code {
+				return false
 			}
 
 		case "fail-regex":

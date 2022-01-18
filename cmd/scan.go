@@ -84,7 +84,7 @@ func init() {
 	scanCmd.PersistentFlags().StringVar(&proxyAddress, "proxy", "", "Proxy address")
 	scanCmd.PersistentFlags().StringVarP(&resultFormat, "format", "f", "", "Result format (plain, json, markdown)")
 	scanCmd.PersistentFlags().StringVarP(&resultFile, "output", "o", "", "Save result to output file")
-	scanCmd.PersistentFlags().StringSliceVarP(&headers, "header", "H", []string{}, "Headers of this test case")
+	scanCmd.PersistentFlags().StringSliceVarP(&headers, "header", "H", []string{}, "Headers of this test case (support duplicate flag)")
 	scanCmd.PersistentFlags().IntVar(&concurrency, "concurrency", 1, "Number of URLs to be test in parallel")
 	scanCmd.PersistentFlags().IntVar(&delay, "delay", 0, "Second of Delay to HTTP Request")
 	scanCmd.PersistentFlags().IntVar(&timeout, "timeout", 10, "Second of Timeout to HTTP Request")

@@ -11,8 +11,8 @@ Usage:
 
 Flags:
       --assert-fail-regex string       Set fail regex assert
-      --assert-fail-size int           Set fail size assert (default -1)
-      --assert-fail-status string      Set fail status assert
+      --assert-fail-size ints          Set fail size assert (support duplicate flag)
+      --assert-fail-status ints        Set fail status assert (support duplicate flag)
       --assert-success-status string   Set success status assert
   -h, --help                           help for new
       --include-roles string           Include Roles from the file

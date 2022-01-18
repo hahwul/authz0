@@ -14,9 +14,9 @@ type NewArguments struct {
 	IncludeURLs         string
 	IncludeRoles        string
 	AssertSuccessStatus string
-	AssertFailStatus    string
+	AssertFailStatus    []int
 	AssertFailRegex     string
-	AssertFailSize      int
+	AssertFailSize      []int
 }
 
 func Generate(options NewArguments) {
@@ -27,17 +27,21 @@ func Generate(options NewArguments) {
 		assert := setAssert("success-status", options.AssertSuccessStatus)
 		template.Asserts = append(template.Asserts, assert)
 	}
-	if options.AssertFailStatus != "" {
-		assert := setAssert("fail-status", options.AssertFailStatus)
-		template.Asserts = append(template.Asserts, assert)
+	if len(options.AssertFailStatus) > 0 {
+		for _, v := range options.AssertFailStatus {
+			assert := setAssert("fail-status", strconv.Itoa(v))
+			template.Asserts = append(template.Asserts, assert)
+		}
 	}
 	if options.AssertFailRegex != "" {
 		assert := setAssert("fail-regex", options.AssertFailRegex)
 		template.Asserts = append(template.Asserts, assert)
 	}
-	if options.AssertFailSize != -1 {
-		assert := setAssert("fail-size", strconv.Itoa(options.AssertFailSize))
-		template.Asserts = append(template.Asserts, assert)
+	if len(options.AssertFailSize) > 0 {
+		for _, v := range options.AssertFailSize {
+			assert := setAssert("fail-size", strconv.Itoa(v))
+			template.Asserts = append(template.Asserts, assert)
+		}
 	}
 
 	if options.IncludeURLs != "" {
