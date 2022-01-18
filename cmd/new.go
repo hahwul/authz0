@@ -12,6 +12,7 @@ var includeURLs, includeRoles string
 var successStatus string
 var failRegex string
 var failStatus, failSize []int
+var failSizeMargin int
 
 // newCmd represents the new command
 var newCmd = &cobra.Command{
@@ -49,4 +50,5 @@ func init() {
 	newCmd.PersistentFlags().IntSliceVar(&failStatus, "assert-fail-status", []int{}, "Set fail status assert (support duplicate flag)")
 	newCmd.PersistentFlags().StringVar(&failRegex, "assert-fail-regex", "", "Set fail regex assert")
 	newCmd.PersistentFlags().IntSliceVar(&failSize, "assert-fail-size", []int{}, "Set fail size assert (support duplicate flag)")
+	newCmd.PersistentFlags().IntVar(&failSizeMargin, "assert-fail-size-margin", 0, "Set approximation range of fail size assert")
 }

@@ -9,14 +9,15 @@ import (
 )
 
 type NewArguments struct {
-	Filename            string
-	Name                string
-	IncludeURLs         string
-	IncludeRoles        string
-	AssertSuccessStatus string
-	AssertFailStatus    []int
-	AssertFailRegex     string
-	AssertFailSize      []int
+	Filename             string
+	Name                 string
+	IncludeURLs          string
+	IncludeRoles         string
+	AssertSuccessStatus  string
+	AssertFailStatus     []int
+	AssertFailRegex      string
+	AssertFailSize       []int
+	AssertFailSizeMargin int
 }
 
 func Generate(options NewArguments) {
@@ -35,6 +36,10 @@ func Generate(options NewArguments) {
 	}
 	if options.AssertFailRegex != "" {
 		assert := setAssert("fail-regex", options.AssertFailRegex)
+		template.Asserts = append(template.Asserts, assert)
+	}
+	if options.AssertFailSizeMargin != 0 {
+		assert := setAssert("fail-size-margin", strconv.Itoa(options.AssertFailSizeMargin))
 		template.Asserts = append(template.Asserts, assert)
 	}
 	if len(options.AssertFailSize) > 0 {

@@ -13,6 +13,13 @@ import (
 )
 
 func checkAssert(res *http.Response, asserts []models.Assert, cl int) bool {
+	failSizeMargin := 0
+	for _, assert := range asserts {
+		if assert.Type == "fail-size-margin" {
+			failSizeMargin, _ = strconv.Atoi(assert.Value)
+		}
+	}
+
 	for _, assert := range asserts {
 		switch assert.Type {
 		case "success-status":
@@ -47,7 +54,10 @@ func checkAssert(res *http.Response, asserts []models.Assert, cl int) bool {
 			}
 		case "fail-size":
 			size, _ := strconv.Atoi(assert.Value)
-			if cl == size {
+			if cl > size-failSizeMargin {
+				return false
+			}
+			if cl < size+failSizeMargin {
 				return false
 			}
 		}
