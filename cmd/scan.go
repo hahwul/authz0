@@ -10,6 +10,7 @@ import (
 	"github.com/hahwul/authz0/pkg/report"
 	"github.com/hahwul/authz0/pkg/scan"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 var cookie, scanRolename, proxyAddress, resultFormat, resultFile string
@@ -68,6 +69,15 @@ var scanCmd = &cobra.Command{
 					report.PrintTableReport(results, resultFormat)
 					rlog.Info("url indexes")
 					report.PrintTableURLs(results, resultFormat)
+					e, _ := yaml.Marshal(&results)
+					if resultFile != "" {
+						err := ioutil.WriteFile(resultFile, e, 0644)
+						if err != nil {
+							rlog.Error("file write error")
+						} else {
+							rlog.Info("output file write success")
+						}
+					}
 				}
 			}
 		} else {
