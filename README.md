@@ -38,15 +38,6 @@ brew install authz0
 Need more information? please refer to [installation guide](https://authz0.hahwul.com/installation.html)
 
 ## 🛸 Usage
-1) Generate template
-```
-authz0 new <filename> [flags]
-```
-2) Scanning 
-```
-authz0 scan <filename> [flags]
-```
-
 **Available Commands:**
 ```
   completion  Generate the autocompletion script for the specified shell
@@ -56,6 +47,15 @@ authz0 scan <filename> [flags]
   setRole     Append Role to Template
   setUrl      Append URL to Template
   version     Show version
+```
+
+1) Generate template
+```
+authz0 new <filename> [flags]
+```
+2) Scanning 
+```
+authz0 scan <filename> [flags]
 ```
 
 ## 📖 Documents
