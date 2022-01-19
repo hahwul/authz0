@@ -42,7 +42,7 @@ func ImportBurpFormat(filename string) Items {
 	var burpObject Items
 	burpFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-
+		panic(err)
 	}
 	err = xml.Unmarshal(burpFile, &burpObject)
 	if err != nil {

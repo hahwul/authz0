@@ -40,7 +40,7 @@ func ImportZAPFormat(filename string) HARObject {
 	var harObject HARObject
 	harFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-
+		panic(err)
 	}
 	err = json.Unmarshal(harFile, &harObject)
 	if err != nil {
