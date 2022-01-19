@@ -8,7 +8,7 @@ import (
 )
 
 var name string
-var includeURLs, includeRoles, includeHar string
+var includeURLs, includeRoles, includeHar, includeBurp string
 var successStatus string
 var failRegex string
 var failStatus, failSize []int
@@ -32,6 +32,7 @@ var newCmd = &cobra.Command{
 			IncludeURLs:         includeURLs,
 			IncludeRoles:        includeRoles,
 			IncludeHAR:          includeHar,
+			IncludeBurp:         includeBurp,
 			AssertSuccessStatus: successStatus,
 			AssertFailStatus:    failStatus,
 			AssertFailRegex:     failRegex,
@@ -47,7 +48,8 @@ func init() {
 	newCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "Template name")
 	newCmd.PersistentFlags().StringVar(&includeURLs, "include-urls", "", "Include URLs from the file")
 	newCmd.PersistentFlags().StringVar(&includeRoles, "include-roles", "", "Include Roles from the file")
-	newCmd.PersistentFlags().StringVar(&includeHar, "include-har", "", "Include HAR file (for ZAP)")
+	newCmd.PersistentFlags().StringVar(&includeHar, "include-zap", "", "Include HAR file (for ZAP)")
+	newCmd.PersistentFlags().StringVar(&includeBurp, "include-burp", "", "Include XML file (for Burp)")
 	newCmd.PersistentFlags().StringVar(&successStatus, "assert-success-status", "", "Set success status assert")
 	newCmd.PersistentFlags().IntSliceVar(&failStatus, "assert-fail-status", []int{}, "Set fail status assert (support duplicate flag)")
 	newCmd.PersistentFlags().StringVar(&failRegex, "assert-fail-regex", "", "Set fail regex assert")

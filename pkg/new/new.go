@@ -1,7 +1,11 @@
 package new
 
 import (
+	"bufio"
+	b64 "encoding/base64"
+	"net/http"
 	"strconv"
+	"strings"
 
 	authz0 "github.com/hahwul/authz0/pkg/authz0"
 	"github.com/hahwul/authz0/pkg/include"
@@ -16,6 +20,7 @@ type NewArguments struct {
 	IncludeURLs          string
 	IncludeRoles         string
 	IncludeHAR           string
+	IncludeBurp          string
 	AssertSuccessStatus  string
 	AssertFailStatus     []int
 	AssertFailRegex      string
@@ -85,8 +90,8 @@ func Generate(options NewArguments) {
 		}
 	}
 	if options.IncludeHAR != "" {
-		log.Info("import HAR file")
-		harObject := include.ImportHARFormat(options.IncludeHAR)
+		log.Info("import HAR(ZAP) file")
+		harObject := include.ImportZAPFormat(options.IncludeHAR)
 		for _, entry := range harObject.Log.Entries {
 			var turl string
 			if len(entry.Request.QueryString) > 0 {
@@ -110,6 +115,34 @@ func Generate(options NewArguments) {
 				ContentType: ttype,
 			}
 			template.URLs = append(template.URLs, url)
+		}
+	}
+	if options.IncludeBurp != "" {
+		log.Info("import XML(Burp) file")
+		burpObject := include.ImportBurpFormat(options.IncludeBurp)
+		for _, item := range burpObject.Item {
+			sDec, _ := b64.StdEncoding.DecodeString(item.Request.Base64)
+			sData := strings.ReplaceAll(string(sDec), "HTTP/2", "HTTP/1.1")
+			buf := bufio.NewReader(strings.NewReader(sData))
+			req, err := http.ReadRequest(buf)
+			if err == nil {
+				url := models.URL{
+					URL:         item.URL,
+					Method:      item.Method,
+					Body:        req.PostForm.Encode(),
+					ContentType: "",
+				}
+				template.URLs = append(template.URLs, url)
+			} else {
+				url := models.URL{
+					URL:         item.URL,
+					Method:      item.Method,
+					Body:        "",
+					ContentType: "",
+				}
+				template.URLs = append(template.URLs, url)
+			}
+
 		}
 	}
 

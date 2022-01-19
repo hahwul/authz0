@@ -36,7 +36,7 @@ type PostData struct {
 	Text     string `json:"text"`
 }
 
-func ImportHARFormat(filename string) HARObject {
+func ImportZAPFormat(filename string) HARObject {
 	var harObject HARObject
 	harFile, err := ioutil.ReadFile(filename)
 	if err != nil {
