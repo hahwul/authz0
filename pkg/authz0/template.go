@@ -22,7 +22,7 @@ func FileToTemplate(filename string) models.Template {
 	var template models.Template
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-
+		panic(err)
 	}
 	err = yaml.Unmarshal(yamlFile, &template)
 	if err != nil {
