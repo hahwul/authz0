@@ -47,7 +47,8 @@ authz0 new <filename> [flags]
 authz0 scan <filename> [flags]
 ```
 
-> Available Commands:
+```
+Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
   new         Generate new template
@@ -55,6 +56,7 @@ authz0 scan <filename> [flags]
   setRole     Append Role to Template
   setUrl      Append URL to Template
   version     Show version
+```
 
 ## 📖 Documents
 https://authz0.hahwul.com
