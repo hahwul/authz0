@@ -53,14 +53,38 @@ Need more information? please refer to [installation guide](https://authz0.hahwu
   version     Show version
 ```
 
-1) Generate template
+### 1. Generate template
 ```
 authz0 new <filename> [flags]
 ```
+e.g 
+```
+authz0 new target.yaml --include-urls urls.txt
+authz0 new target.yaml --include-zap zapurls.har
+authz0 new target.yaml --include-burp burpurl.xml
+```
 
-2) Scanning 
+### 2. Modify template
+```
+authz0 setCred <filename> [flags]
+authz0 setRole <filename> [flags]
+authz0 setUrl <filename> [flags]
+```
+e.g 
+```
+authz0 setUrl target.yaml setUrl -u https://www.hahwul.com
+authz0 setRole target.yaml -n User1
+authz0 setCred target.yaml -n User1 -H "X-API-Key: 1234" -H "TestHeader: 12344"
+```
+
+### 3. Scanning 
 ```
 authz0 scan <filename> [flags]
+```
+e.g
+```
+authz0 scan target.yaml
+authz0 scan target.yaml -r TestUser1 -H "Cookie: 1234=1234" -H "X-API-Key: 1234555"
 ```
 
 ## 📖 Documents
