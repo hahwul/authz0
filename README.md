@@ -20,7 +20,10 @@ URLs and Roles are managed as YAML-based templates, which can be automatically c
 * Generate scan template `$ authz0 new`
     * Include URLs
     * Include Roles
-* Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole`
+    * Include ZAP history (Select URLS > Save Selected Entiries as HAR)
+    * Include Burp history (Select URLs > Save item)
+    * Imclude HAR file
+* Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole` `authz0 setCred`
 * Scanning authorization(access-control) with template `$ authz0 scan`
 
 ## 🚀 Installation
@@ -44,6 +47,7 @@ Need more information? please refer to [installation guide](https://authz0.hahwu
   help        Help about any command
   new         Generate new template
   scan        Scanning
+  setCred     Append Credential to Template
   setRole     Append Role to Template
   setUrl      Append URL to Template
   version     Show version
@@ -53,6 +57,7 @@ Need more information? please refer to [installation guide](https://authz0.hahwu
 ```
 authz0 new <filename> [flags]
 ```
+
 2) Scanning 
 ```
 authz0 scan <filename> [flags]

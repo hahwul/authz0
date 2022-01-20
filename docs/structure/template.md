@@ -26,4 +26,11 @@ urls:
 asserts: # assertions
 - type: success-status
   value: "200,201,202,204"
+credentials:
+- rolename: User
+  headers:
+  - 'X-API-Key: 1234'
+- rolename: Admin1
+  headers:
+  - 'X-API-Key: 5555'
 ```
