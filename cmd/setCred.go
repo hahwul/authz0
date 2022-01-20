@@ -16,7 +16,7 @@ var credHeaders []string
 
 // setCredCmd represents the setCred command
 var setCredCmd = &cobra.Command{
-	Use:   "setCred",
+	Use:   "setCred <filename>",
 	Short: "Append Credential to Template",
 	Run: func(cmd *cobra.Command, args []string) {
 		log := logger.GetLogger(debug)
