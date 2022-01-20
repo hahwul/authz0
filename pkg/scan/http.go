@@ -12,7 +12,7 @@ import (
 	"github.com/hahwul/authz0/pkg/models"
 )
 
-func sendReq(req models.URL, args ScanArguments, template models.Template) (*http.Response, int, error) {
+func sendReq(req models.URL, args ScanArguments, template models.Template, headers []string) (*http.Response, int, error) {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -47,8 +47,8 @@ func sendReq(req models.URL, args ScanArguments, template models.Template) (*htt
 		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	if len(args.Headers) > 0 {
-		for _, v := range args.Headers {
+	if len(headers) > 0 {
+		for _, v := range headers {
 			h := strings.Split(v, ": ")
 			if len(h) > 1 {
 				r.Header.Add(h[0], h[1])

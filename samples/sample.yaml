@@ -15,7 +15,7 @@ urls:
   - SuperAdmin
   - User
   denyRole: []
-  alias: "main"
+  alias: main
 - url: https://www.hahwul.com/about/
   method: GET
   contentType: ""
@@ -25,7 +25,7 @@ urls:
   - Admin1
   - SuperAdmin
   denyRole: []
-  alias: "about"
+  alias: about
 - url: https://www.hahwul.com/phoenix/main
   method: GET
   contentType: ""
@@ -33,7 +33,7 @@ urls:
   allowRole: []
   denyRole:
   - User
-  alias: "phoenix"
+  alias: phoenix
 - url: https://www.hahwul.com/phoenix/csrf/
   method: GET
   contentType: ""
@@ -41,7 +41,7 @@ urls:
   allowRole: []
   denyRole:
   - User
-  alias: "phoenix > csrf generator"
+  alias: phoenix > csrf generator
 - url: https://www.hahwul.com/phoenix/wysiwyg-xss/
   method: GET
   contentType: ""
@@ -49,7 +49,7 @@ urls:
   allowRole: []
   denyRole:
   - User
-  alias: "phoenix > wysiwyg-xss"
+  alias: phoenix > wysiwyg-xss
 - url: https://www.hahwul.com/archive/
   method: GET
   contentType: ""
@@ -57,60 +57,69 @@ urls:
   allowRole: []
   denyRole:
   - User
-  alias: "archive"
+  alias: archive
 - url: https://www.hahwul.com/cullinan/main/
   method: GET
   contentType: ""
   body: ""
   allowRole: []
-  denyRole:
-  alias: "cullinan"
+  denyRole: []
+  alias: cullinan
 - url: https://www.hahwul.com/cullinan/xss/
   method: GET
   contentType: ""
   body: ""
   allowRole: []
-  denyRole:
-  alias: "cullinan > xss"
+  denyRole: []
+  alias: cullinan > xss
 - url: https://www.hahwul.com/cullinan/csrf/
   method: GET
   contentType: ""
   body: ""
   allowRole: []
-  denyRole:
-  alias: "cullinan > csrf"
+  denyRole: []
+  alias: cullinan > csrf
 - url: https://www.hahwul.com/cullinan/
   method: GET
   contentType: ""
   body: ""
   allowRole: []
-  denyRole:
-  alias: "cullinan"
+  denyRole: []
+  alias: cullinan
 - url: https://www.hahwul.com/cullinan/ffff/
   method: POST
-  contentType: "json"
-  body: "{\"ccc\":\"aaa\"}"
-  allowRole: [SuperAdmin]
-  denyRole:
-  alias: "cullinan > test func"
+  contentType: json
+  body: '{"ccc":"aaa"}'
+  allowRole:
+  - SuperAdmin
+  denyRole: []
+  alias: cullinan > test func
 - url: https://www.hahwul.com/cullinan/zzzz/
   method: PUT
   contentType: ""
-  body: "asdf=1234"
-  allowRole: 
+  body: asdf=1234
+  allowRole:
   - Admin
   - SuperAdmin
   denyRole:
   - User
-  alias: "cullinan > test func2"
+  alias: cullinan > test func2
 - url: https://www.hahwul.com/
   method: GET
   contentType: ""
   body: ""
-  allowRole: [SuperAdmin]
+  allowRole:
+  - SuperAdmin
   denyRole:
   - User
-  alias: "super power func"
+  alias: super power func
 asserts:
 - type: success-status
-  value: "200,201,202,204"
+  value: 200,201,202,204
+credentials:
+- rolename: User
+  headers:
+  - 'X-API-Key: 1234'
+- rolename: Admin1
+  headers:
+  - 'X-API-Key: 5555'
