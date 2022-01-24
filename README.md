@@ -22,7 +22,7 @@ URLs and Roles are managed as YAML-based templates, which can be automatically c
     * Include Roles
     * Include ZAP history (Select URLS > Save Selected Entiries as HAR)
     * Include Burp history (Select URLs > Save item)
-    * Imclude HAR file
+    * Include HAR file
 * Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole` `authz0 setCred`
 * Scanning authorization(access-control) with template `$ authz0 scan`
 
