@@ -14,7 +14,7 @@ Flags:
   -c, --cookie string     Cookie value of this test case
       --delay int         Second of Delay to HTTP Request
   -f, --format string     Result format (plain, json, markdown)
-  -H, --header strings    Headers of this test case
+  -H, --header strings    Headers of this test case (support duplicate flag)
   -h, --help              help for scan
       --no-report         Not print report (only log mode)
   -o, --output string     Save result to output file

@@ -14,6 +14,7 @@ Available Commands:
   help        Help about any command
   new         Generate new template
   scan        Scanning
+  setCred     Append Credential to Template
   setRole     Append Role to Template
   setUrl      Append URL to Template
   version     Show version
