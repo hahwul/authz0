@@ -3,6 +3,7 @@ package new
 import (
 	"bufio"
 	b64 "encoding/base64"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -114,6 +115,9 @@ func Generate(options NewArguments) {
 				Body:        entry.Request.PostData.Text,
 				ContentType: ttype,
 			}
+			if (strings.HasPrefix(entry.Request.PostData.Text, "{\"")) || (strings.HasSuffix(entry.Request.PostData.Text, "\"}")) {
+				url.ContentType = "json"
+			}
 			template.URLs = append(template.URLs, url)
 		}
 	}
@@ -121,16 +125,23 @@ func Generate(options NewArguments) {
 		log.Info("import XML(Burp) file")
 		burpObject := include.ImportBurpFormat(options.IncludeBurp)
 		for _, item := range burpObject.Item {
-			sDec, _ := b64.StdEncoding.DecodeString(item.Request.Base64)
+			sDec, _ := b64.StdEncoding.DecodeString(item.Request.Text)
 			sData := strings.ReplaceAll(string(sDec), "HTTP/2", "HTTP/1.1")
 			buf := bufio.NewReader(strings.NewReader(sData))
 			req, err := http.ReadRequest(buf)
 			if err == nil {
+				bodyByte, err := ioutil.ReadAll(req.Body)
+				if err != nil {
+					bodyByte = []byte("")
+				}
 				url := models.URL{
 					URL:         item.URL,
 					Method:      item.Method,
-					Body:        req.PostForm.Encode(),
+					Body:        string(bodyByte),
 					ContentType: "",
+				}
+				if (strings.HasPrefix(string(bodyByte), "{\"")) || (strings.HasSuffix(string(bodyByte), "\"}")) {
+					url.ContentType = "json"
 				}
 				template.URLs = append(template.URLs, url)
 			} else {
