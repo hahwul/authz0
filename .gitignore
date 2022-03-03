@@ -18,3 +18,4 @@
 authz0
 !pkg/authz0/
 docs/_site/*
+dist/
