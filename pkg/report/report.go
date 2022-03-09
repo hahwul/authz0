@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hahwul/authz0/pkg/logger"
 	"github.com/hahwul/authz0/pkg/models"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
@@ -22,12 +23,13 @@ func PrettyJSON(b []byte) ([]byte, error) {
 
 func WriteYAMLReportToFile(data []models.Result, filename string) {
 	yamlData, err := yaml.Marshal(&data)
+	log := logger.GetLogger(false)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	err = ioutil.WriteFile(filename, yamlData, 0644)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 

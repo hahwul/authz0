@@ -67,7 +67,7 @@ func Generate(options NewArguments) {
 	if options.IncludeURLs != "" {
 		urls, err := utils.ReadLinesOrLiteral(options.IncludeURLs)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		log.Info("import urls from file")
 		for _, line := range urls {
@@ -80,7 +80,7 @@ func Generate(options NewArguments) {
 	if options.IncludeRoles != "" {
 		roles, err := utils.ReadLinesOrLiteral(options.IncludeRoles)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		log.Info("import roles from file")
 		for _, line := range roles {

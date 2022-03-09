@@ -4,12 +4,13 @@ go 1.17
 
 require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.3.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
+	github.com/hahwul/volt v1.0.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect

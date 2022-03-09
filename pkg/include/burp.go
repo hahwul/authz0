@@ -3,6 +3,8 @@ package include
 import (
 	"encoding/xml"
 	"io/ioutil"
+
+	"github.com/hahwul/authz0/pkg/logger"
 )
 
 type Items struct {
@@ -40,13 +42,14 @@ type Items struct {
 
 func ImportBurpFormat(filename string) Items {
 	var burpObject Items
+	log := logger.GetLogger(false)
 	burpFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-		panic(err)
+		log.Fatal("no such file or directory")
 	}
 	err = xml.Unmarshal(burpFile, &burpObject)
 	if err != nil {
-		panic(err)
+		log.Fatal("xml unmarshal error")
 	}
 	return burpObject
 }
