@@ -25,6 +25,7 @@ URLs and Roles are managed as YAML-based templates, which can be automatically c
     * Include HAR file
 * Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole` `authz0 setCred`
 * Scanning authorization(access-control) with template `$ authz0 scan`
+* Support macOS/Windows/Linux and [Docker](https://hub.docker.com/r/hahwul/authz0/tags), [Github action](https://github.com/marketplace/actions/authz0-scan)
 
 ## 🚀 Installation
 *go install*
