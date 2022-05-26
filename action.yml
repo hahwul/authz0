@@ -1,0 +1,17 @@
+name: 'Authz0 Scan'
+description: 'Unauthorized access can be identified based on URLs and Roles & Credentials.'
+branding:
+  icon: 'shield'
+  color: 'blue'
+inputs:
+  template:  # id of input
+    description: 'Scan template contents'
+    required: true
+outputs:
+  output: 
+    description: 'JSON Result'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.template }}
