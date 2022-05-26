@@ -1,4 +1,4 @@
-name: 'Authz0'
+name: 'Authz0 scanner'
 description: 'Unauthorized access can be identified based on URLs and Roles & Credentials.'
 branding:
   icon: 'shield'
