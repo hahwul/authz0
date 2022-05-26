@@ -88,6 +88,9 @@ authz0 scan target.yaml
 authz0 scan target.yaml -r TestUser1 -H "Cookie: 1234=1234" -H "X-API-Key: 1234555"
 ```
 
+## Github Actions
+Please read https://github.com/hahwul/authz0/tree/main/github-action
+
 ## 📖 Documents
 https://authz0.hahwul.com
 
