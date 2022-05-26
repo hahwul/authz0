@@ -12,6 +12,6 @@ outputs:
     description: 'JSON Result'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: 'github-action/Dockerfile'
   args:
     - ${{ inputs.template }}
