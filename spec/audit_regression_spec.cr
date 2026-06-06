@@ -440,6 +440,19 @@ describe "usability regressions" do
     end
   end
 
+  it "removes a url by its exact path, not only by id/glob" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/reports"], home)
+      CLISpec.run(["url", "add", "s", "/account"], home)
+      r = CLISpec.run(["url", "remove", "s", "/reports", "-y"], home)
+      r.status.should eq(0)
+      list = CLISpec.run(["url", "list", "s"], home).stdout
+      list.should_not contain("/reports")
+      list.should contain("/account") # only the matched path was removed
+    end
+  end
+
   it "accepts delete/remove/rm interchangeably across resources" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

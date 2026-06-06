@@ -20,7 +20,7 @@ module Authz0::CLI
       list <session> [--role R] [--json]  List endpoints
       show <session> <id> [--json]        Show one endpoint
       update <session> <id> [options]     Modify an endpoint
-      remove <session> <id|pattern> [-y]  Remove endpoint(s)
+      remove <session> <id|path|glob> [-y]  Remove endpoint(s) by id, exact path, #index, or glob
 
     Add/update options:
       --method M           HTTP method (default GET)
@@ -279,7 +279,7 @@ module Authz0::CLI
     private def remove(args)
       positional = [] of String
       OptionParser.parse(args) do |p|
-        p.banner = "Usage: authz0 url remove <session> <id|pattern> [-y]"
+        p.banner = "Usage: authz0 url remove <session> <id|path|glob> [-y]"
         p.on("-y", "--yes", "Skip confirmation") { Runtime.assume_yes = true }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
@@ -305,7 +305,7 @@ module Authz0::CLI
       Logger.success "removed #{pluralize(removed, "url")}"
     end
 
-    # Match by exact id, "#N" index, or a glob over the path.
+    # Match by exact id, "#N" index, exact path/URL, or a glob over the path.
     private def match_urls(urls : Array(TargetURL), token : String) : Array(TargetURL)
       if u = urls.find { |x| x.id == token }
         return [u]
@@ -313,6 +313,11 @@ module Authz0::CLI
       if idx = index_from_token(urls, token)
         return [urls[idx]]
       end
+      # Exact path (or full URL) match — the intuitive `url remove s /reports`.
+      # A glob's `*` never crosses '/', so this can't be left to the glob branch.
+      exact = urls.select { |t| t.path == token }
+      return exact unless exact.empty?
+
       if token.includes?('*') || token.includes?('?')
         pattern = token
         begin
