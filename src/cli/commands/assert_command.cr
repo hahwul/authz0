@@ -62,6 +62,12 @@ module Authz0::CLI
         p.on("--fail-regex PATTERN", "Body match means NOT accessible") do |v|
           rules << Assertion.new("fail-regex", v)
         end
+        p.on("--fail-header HEADER", "Response header 'Name' or 'Name: substr' means NOT accessible") do |v|
+          rules << Assertion.new("fail-header", v)
+        end
+        p.on("--success-header HEADER", "Response header 'Name' or 'Name: substr' means accessible") do |v|
+          rules << Assertion.new("success-header", v)
+        end
         p.on("--fail-size N", "~byte size that means NOT accessible") do |v|
           raise ValidationError.new("--fail-size must be a number: #{v}") unless v.to_i64?
           rules << Assertion.new("fail-size", v)

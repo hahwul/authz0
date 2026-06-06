@@ -35,9 +35,14 @@ module Authz0
             if target = a.value.strip.to_i64?
               return false if (response.size - target).abs <= margin
             end
+          when "fail-header"
+            return false if header_matches?(response.headers, a.value)
           when "success-status"
             has_success = true
             success_match ||= status_list_matches?(code, a.value)
+          when "success-header"
+            has_success = true
+            success_match ||= header_matches?(response.headers, a.value)
           end
         end
 
@@ -49,6 +54,21 @@ module Authz0
       # ("200") or status classes ("2xx", "4xx").
       private def status_list_matches?(status : Int32, value : String) : Bool
         value.split(',').any? { |t| status_matches?(status, t) }
+      end
+
+      # Match a response header. Value is "Name" (header present) or
+      # "Name: substring" (present and value contains substring, case-insens).
+      private def header_matches?(headers : Hash(String, String), value : String) : Bool
+        idx = value.index(':')
+        if idx
+          name = value[0...idx].strip.downcase
+          needle = value[(idx + 1)..].strip.downcase
+          actual = headers[name]?
+          return false if actual.nil?
+          needle.empty? || actual.downcase.includes?(needle)
+        else
+          headers.has_key?(value.strip.downcase)
+        end
       end
 
       private def status_matches?(status : Int32, token : String) : Bool

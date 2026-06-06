@@ -17,7 +17,7 @@ module Authz0
     property type : String
     property value : String
 
-    TYPES = %w[success-status fail-status fail-regex fail-size fail-size-margin]
+    TYPES = %w[success-status fail-status fail-regex fail-size fail-size-margin success-header fail-header]
 
     def initialize(@type : String, @value : String)
     end

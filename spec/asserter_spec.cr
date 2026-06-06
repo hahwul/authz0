@@ -55,6 +55,19 @@ describe Authz0::Scan::Asserter do
     Authz0::Scan::Asserter.accessible?(errored, [assertion("success-status", "200")]).should be_false
   end
 
+  it "applies response-header asserts" do
+    blocked = Authz0::Scan::HttpResponse.new(200, "ok", 2_i64, headers: {"x-blocked" => "true", "x-tier" => "free"})
+    # fail-header by name presence
+    Authz0::Scan::Asserter.accessible?(blocked, [assertion("fail-header", "X-Blocked")]).should be_false
+    # fail-header by substring (case-insensitive)
+    Authz0::Scan::Asserter.accessible?(blocked, [assertion("fail-header", "X-Tier: FREE")]).should be_false
+    # non-matching header → falls back to 2xx default
+    Authz0::Scan::Asserter.accessible?(blocked, [assertion("fail-header", "X-Tier: paid")]).should be_true
+    # success-header positive signal
+    Authz0::Scan::Asserter.accessible?(blocked, [assertion("success-header", "X-Tier: free")]).should be_true
+    Authz0::Scan::Asserter.accessible?(blocked, [assertion("success-header", "X-Missing")]).should be_false
+  end
+
   it "matches status classes (2xx / 4xx / 5xx)" do
     ok = [assertion("success-status", "2xx")]
     Authz0::Scan::Asserter.accessible?(resp(204), ok).should be_true

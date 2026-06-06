@@ -14,9 +14,12 @@ module Authz0
       getter size : Int64
       getter error : String?
       getter redirect_location : String?
+      # Response headers, lower-cased names, multi-values comma-joined.
+      getter headers : Hash(String, String)
 
       def initialize(@status_code : Int32, @body : String, @size : Int64,
-                     @error : String? = nil, @redirect_location : String? = nil)
+                     @error : String? = nil, @redirect_location : String? = nil,
+                     @headers : Hash(String, String) = {} of String => String)
       end
 
       def self.errored(message : String) : HttpResponse
@@ -239,8 +242,10 @@ module Authz0
 
       private def to_response(response : HTTP::Client::Response) : HttpResponse
         body = response.body? || ""
+        hdrs = {} of String => String
+        response.headers.each { |name, values| hdrs[name.downcase] = values.join(", ") }
         HttpResponse.new(response.status_code, body, body.bytesize.to_i64,
-          redirect_location: response.headers["Location"]?)
+          redirect_location: response.headers["Location"]?, headers: hdrs)
       end
 
       private def apply_defaults(headers : HTTP::Headers, uri : URI)
