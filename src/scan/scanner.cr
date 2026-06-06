@@ -92,7 +92,9 @@ module Authz0
         cred = job.cred
         url = target.resolve(base_url)
         headers = build_headers(target, cred)
+        started = Time.instant
         response = @client.request(target.method, url, headers, target.body)
+        elapsed = (Time.instant - started).total_milliseconds.to_i
 
         accessible = Asserter.accessible?(response, asserts)
         verdict, expected = evaluate(target, cred.role, accessible, response)
@@ -111,6 +113,7 @@ module Authz0
           alias: target.alias,
           verdict: verdict,
           error: response.error,
+          elapsed_ms: elapsed,
         )
         log_progress(result)
         result

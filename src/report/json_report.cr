@@ -41,6 +41,7 @@ module Authz0
                     json.field "expected_access", r.expected_access
                     json.field "status_code", r.status_code
                     json.field "resp_size", r.resp_size
+                    json.field "elapsed_ms", r.elapsed_ms
                     json.field "alias", r.alias
                     json.field "verdict", r.verdict
                     json.field "severity", r.severity.label

@@ -45,13 +45,16 @@ module Authz0
     property alias : String?
     property verdict : String
     property error : String?
+    # Round-trip time for this probe in milliseconds (whole chain incl.
+    # retries/redirects).
+    property elapsed_ms : Int32 = 0
 
     def initialize(@index : Int32, @url : String, @method : String, @role : String,
                    @allow_roles : Array(String), @deny_roles : Array(String),
                    @accessible : Bool, @expected_access : Bool,
                    @status_code : Int32, @resp_size : Int64,
                    @alias : String? = nil, @verdict : String = "O",
-                   @error : String? = nil)
+                   @error : String? = nil, @elapsed_ms : Int32 = 0)
     end
 
     def vulnerable? : Bool

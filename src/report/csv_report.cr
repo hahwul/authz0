@@ -7,7 +7,7 @@ module Authz0
     # CSV report — one row per probe, RFC-4180 quoted (handled by stdlib CSV).
     # Convenient for spreadsheets, jq-less triage, and diffing across runs.
     class CsvReport
-      HEADERS = %w[index status method url role accessible expected verdict severity reason error]
+      HEADERS = %w[index status method url role accessible expected verdict severity elapsed_ms reason error]
 
       def render(results : Array(Result)) : String
         CSV.build do |csv|
@@ -23,6 +23,7 @@ module Authz0
               r.verdict == "?" ? "" : r.expected_access.to_s,
               r.verdict,
               r.severity.label,
+              r.elapsed_ms.to_s,
               r.reason,
               r.error || "",
             ])
