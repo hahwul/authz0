@@ -30,6 +30,8 @@ module Authz0::CLI
       user_agent : String? = nil
       include_anon = false
       dry_run = false
+      tag_filter : String? = nil
+      match_filter : String? = nil
       insecure = true
       progress = true
       only_findings = false
@@ -65,6 +67,8 @@ module Authz0::CLI
         p.on("--user-agent UA", "Override the User-Agent header") { |v| user_agent = v }
         p.on("--anon", "Also probe each target anonymously (no credentials)") { include_anon = true }
         p.on("--dry-run", "Preview the probe matrix without sending requests") { dry_run = true }
+        p.on("--tag TAG", "Scan only urls carrying this tag") { |v| tag_filter = v }
+        p.on("--match GLOB", "Scan only urls whose path matches GLOB (e.g. /admin/*)") { |v| match_filter = v }
         p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
@@ -131,6 +135,16 @@ module Authz0::CLI
         base_url = s.meta.base_url
         creds = build_creds(s.creds, ad_hoc_role, ad_hoc_headers, ad_hoc_cookies, include_anon)
         source_label = "'#{s.name}'"
+      end
+
+      # Narrow the scan to a subset of urls (focused re-scans on big sessions).
+      if tag = tag_filter
+        targets = targets.select { |t| t.tags.includes?(tag) }
+        raise ValidationError.new("no urls carry the tag '#{tag}'") if targets.empty?
+      end
+      if pat = match_filter
+        targets = targets.select { |t| File.match?(pat, t.path) }
+        raise ValidationError.new("no urls match '#{pat}'") if targets.empty?
       end
 
       via = base_url.empty? ? "" : " via #{base_url}"
