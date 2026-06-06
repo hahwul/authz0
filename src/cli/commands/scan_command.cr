@@ -34,6 +34,7 @@ module Authz0::CLI
       progress = true
       only_findings = false
       severity_filter : String? = nil
+      sort_by_field : String? = nil
       save_path : String? = nil
       save_results = true
       fail_on_findings = false
@@ -72,6 +73,11 @@ module Authz0::CLI
           s = v.downcase
           raise ValidationError.new("--severity must be 'high' or 'low': #{v}") unless ["high", "low"].includes?(s)
           severity_filter = s
+        end
+        p.on("--sort FIELD", "Order rows: severity | latency | status (default: scan order)") do |v|
+          s = v.downcase
+          raise ValidationError.new("--sort must be severity|latency|status: #{v}") unless ["severity", "latency", "status"].includes?(s)
+          sort_by_field = s
         end
         p.on("--insecure", "Skip TLS verification (default)") { insecure = true }
         p.on("--secure", "Enforce TLS verification") { insecure = false }
@@ -168,6 +174,14 @@ module Authz0::CLI
       if sev = severity_filter
         display = sev == "high" ? display.select(&.unauthorized?) : display.select(&.vulnerable?)
       end
+      case sort_by_field
+      when "severity" # most dangerous first, stable on scan order
+        display = display.sort_by { |r| {severity_rank(r), r.index} }
+      when "latency" # slowest first
+        display = display.sort_by { |r| -r.elapsed_ms }
+      when "status"
+        display = display.sort_by { |r| {r.status_code, r.index} }
+      end
 
       # Report → stdout. Color only for the interactive table.
       color = format.table? && STDOUT.tty? && Logger.color_enabled?
@@ -236,6 +250,16 @@ module Authz0::CLI
         "anonymous"
       else
         "#{creds.size} role#{creds.size == 1 ? "" : "s"}"
+      end
+    end
+
+    # 0 = unauthorized (high), 1 = over-restrictive (low), 2 = everything else,
+    # so `--sort severity` surfaces real breaches first.
+    private def severity_rank(r : Result) : Int32
+      case r.severity
+      in Result::Severity::High then 0
+      in Result::Severity::Low  then 1
+      in Result::Severity::None then 2
       end
     end
 
