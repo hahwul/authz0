@@ -38,7 +38,7 @@ module Authz0
       private def defang(value : String) : String
         return value if value.empty?
         case value[0]
-        when '=', '+', '-', '@', '\t', '\r'
+        when '=', '+', '-', '@', '\t', '\r', '\n'
           "'#{value}"
         else
           value

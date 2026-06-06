@@ -271,6 +271,30 @@ describe "audit regressions (rounds)" do
   end
 end
 
+# ---- deep audit (report formats / importers) ----------------------------
+describe "deep-audit regressions" do
+  it "round-trips numeric assert/body/role values through YAML export (quoted scalars)" do
+    SpecHelper.with_temp_home do
+      session = Authz0::Store::SessionStore.create("rt", "http://127.0.0.1:9")
+      session.save_urls([
+        Authz0::TargetURL.new("/x", "POST", body: "12345", allow_roles: ["admin"]),
+      ])
+      session.save_asserts([
+        Authz0::Assertion.new("success-status", "200"),
+        Authz0::Assertion.new("fail-status", "403"),
+        Authz0::Assertion.new("fail-size", "1234"),
+      ])
+      yaml = Authz0::Export::YamlExport.new(session).render
+      parsed = Authz0::Importers::V1Template.new.parse(yaml)
+      # All three asserts (incl. the numeric-looking ones) must survive — a bare
+      # `value: 403` would re-type to Int and be dropped by the importer.
+      parsed.asserts.map(&.type).sort!.should eq(["fail-size", "fail-status", "success-status"])
+      parsed.asserts.find!(&.type.== "fail-status").value.should eq("403")
+      parsed.targets.first.body.should eq("12345") # numeric body preserved
+    end
+  end
+end
+
 # ---- CLI-level regressions (drive the real binary) ----------------------
 describe "audit regressions (CLI)" do
   it "exits non-zero when every probe errors (no false 'clean' pass)" do

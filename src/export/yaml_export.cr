@@ -36,7 +36,7 @@ module Authz0
               roles.each do |role|
                 yaml.mapping do
                   yaml.scalar "name"
-                  yaml.scalar role
+                  qstr(yaml, role)
                 end
               end
             end
@@ -46,25 +46,25 @@ module Authz0
               urls.each do |u|
                 yaml.mapping do
                   yaml.scalar "url"
-                  yaml.scalar u.resolve(base)
+                  qstr(yaml, u.resolve(base))
                   yaml.scalar "method"
-                  yaml.scalar u.method
+                  qstr(yaml, u.method)
                   yaml.scalar "contentType"
-                  yaml.scalar(u.content_type == "json" ? "json" : "")
+                  qstr(yaml, u.content_type || "")
                   yaml.scalar "body"
-                  yaml.scalar(u.body || "")
+                  qstr(yaml, u.body || "")
                   yaml.scalar "allowRole"
-                  yaml.sequence { u.allow_roles.each { |r| yaml.scalar r } }
+                  yaml.sequence { u.allow_roles.each { |r| qstr(yaml, r) } }
                   yaml.scalar "denyRole"
-                  yaml.sequence { u.deny_roles.each { |r| yaml.scalar r } }
+                  yaml.sequence { u.deny_roles.each { |r| qstr(yaml, r) } }
                   yaml.scalar "alias"
-                  yaml.scalar(u.alias || "")
+                  qstr(yaml, u.alias || "")
 
                   unless @v1_compatible
                     yaml.scalar "tags"
-                    yaml.sequence { u.tags.each { |t| yaml.scalar t } }
+                    yaml.sequence { u.tags.each { |t| qstr(yaml, t) } }
                     yaml.scalar "headers"
-                    yaml.mapping { u.headers.each { |k, v| yaml.scalar k; yaml.scalar v } }
+                    yaml.mapping { u.headers.each { |k, v| yaml.scalar k; qstr(yaml, v) } }
                   end
                 end
               end
@@ -75,9 +75,9 @@ module Authz0
               asserts.each do |a|
                 yaml.mapping do
                   yaml.scalar "type"
-                  yaml.scalar a.type
+                  qstr(yaml, a.type)
                   yaml.scalar "value"
-                  yaml.scalar a.value
+                  qstr(yaml, a.value)
                 end
               end
             end
@@ -87,7 +87,7 @@ module Authz0
               creds.each do |c|
                 yaml.mapping do
                   yaml.scalar "rolename"
-                  yaml.scalar c.role
+                  qstr(yaml, c.role)
                   yaml.scalar "headers"
                   yaml.sequence do
                     c.headers.each { |k, v| yaml.scalar "#{k}: #{cred_value(v)}" }
@@ -116,6 +116,15 @@ module Authz0
       # True when this export carries real secrets (so the caller can warn).
       def carries_secrets? : Bool
         !@redact && @session.creds.any? { |c| !c.headers.empty? || !c.cookies.empty? }
+      end
+
+      # Emit a user-data value as an explicitly double-quoted scalar. A bare
+      # scalar like `403` / `true` / `null` round-trips back as an Int/Bool/Nil,
+      # and the v1 importer's `.as_s?` then returns nil and silently DROPS the
+      # field (asserts, bodies, role names, policy) — quoting keeps it a string
+      # for both authz0's own re-import and the v1 (Go) consumer.
+      private def qstr(yaml : YAML::Builder, value : String)
+        yaml.scalar(value, style: YAML::ScalarStyle::DOUBLE_QUOTED)
       end
 
       private def cred_value(value : String) : String

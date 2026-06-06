@@ -1,4 +1,5 @@
 require "colorize"
+require "html"
 
 module Authz0
   # Minimal text table renderer. Two output styles:
@@ -156,12 +157,20 @@ module Authz0
       end
     end
 
+    # A markdown table cell: neutralize inline HTML, then escape the pipe so it
+    # can't break out of the column.
+    private def md_cell(s : String) : String
+      HTML.escape(s).gsub('|', "\\|")
+    end
+
     private def render_markdown(_widths : Array(Int32)) : String
-      # Escape pipes FIRST, then size the columns on the escaped text — otherwise
+      # Escape cells FIRST, then size the columns on the escaped text — otherwise
       # padding is computed from the shorter raw cell and the escaped row is
-      # wider than its column, producing ragged source.
-      esc_headers = @headers.map(&.gsub('|', "\\|"))
-      esc_rows = @rows.map { |row| row.map(&.gsub('|', "\\|")) }
+      # wider than its column, producing ragged source. HTML-escape too: a
+      # markdown table cell otherwise passes raw inline HTML (e.g. <script>)
+      # through to renderers that don't sanitize (CI dashboards, static sites).
+      esc_headers = @headers.map { |h| md_cell(h) }
+      esc_rows = @rows.map { |row| row.map { |c| md_cell(c) } }
 
       widths = esc_headers.map { |h| Table.display_width(h) }
       esc_rows.each do |row|

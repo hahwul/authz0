@@ -54,6 +54,10 @@ module Authz0::CLI
       # (e.g. `curl … | authz0 import openapi sess -`).
       content = file == "-" ? STDIN.gets_to_end : Importers.read_file(file)
       Importers.ensure_utf8!(content, file == "-" ? "stdin" : file)
+      # A UTF-8 BOM (common on Windows-exported specs) isn't whitespace or '{',
+      # so auto-detection would otherwise misread the whole document as a single
+      # junk url. Strip a leading BOM before sniffing/parsing.
+      content = content.lchop('﻿')
       if type == "auto"
         type = detect_type(content)
         Logger.info "detected format: #{type}"
