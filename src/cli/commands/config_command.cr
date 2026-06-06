@@ -1,9 +1,11 @@
 require "option_parser"
+require "uri"
 require "../helpers"
 require "../../report/reporter"
 require "../../utils/config"
 require "../../utils/errors"
 require "../../utils/logger"
+require "../../utils/masking"
 
 module Authz0::CLI
   # `authz0 config <get|set|list>` — read/write the global config
@@ -47,7 +49,7 @@ module Authz0::CLI
       s = settings
       puts "path: #{Config.config_path}"
       print_kv([
-        {"proxy", s.proxy || "(unset)"},
+        {"proxy", s.proxy ? mask_proxy(s.proxy.not_nil!) : "(unset)"},
         {"concurrency", value_with_default(s.concurrency, Settings::DEFAULT_CONCURRENCY)},
         {"timeout", value_with_default(s.timeout, Settings::DEFAULT_TIMEOUT)},
         {"output", s.output || "(unset → #{Settings::DEFAULT_OUTPUT})"},
@@ -122,6 +124,24 @@ module Authz0::CLI
       end
       s.save
       Logger.success "unset #{key}"
+    end
+
+    # Mask the password in a proxy URL for the `config list` overview (which is
+    # routinely screen-shared / pasted into logs), so it doesn't leak like
+    # creds do everywhere else. `config get proxy` stays exact for scripting.
+    private def mask_proxy(value : String) : String
+      uri = URI.parse(value)
+      user = uri.user
+      pass = uri.password
+      return value if user.nil? || pass.nil? || pass.empty?
+      String.build do |s|
+        s << (uri.scheme || "http") << "://" << user << ":" << Masking.mask(pass) << "@" << uri.host
+        s << ":" << uri.port if uri.port
+        s << uri.path unless uri.path.empty?
+        s << "?" << uri.query if uri.query
+      end
+    rescue
+      value
     end
 
     private def value_with_default(value : Int32?, default : Int32) : String

@@ -457,6 +457,17 @@ describe "usability regressions" do
     out.should contain("showing 1") # but flags that only 1 row is displayed
   end
 
+  it "masks the proxy password in `config list` but keeps `config get` exact" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["config", "set", "proxy", "http://user:s3cretpass@127.0.0.1:8080"], home)
+      list = CLISpec.run(["config", "list"], home).stdout
+      list.should_not contain("s3cretpass") # overview must not leak the password
+      list.should contain("user:")          # username stays for identification
+      # `config get` is the scriptable accessor → exact value
+      CLISpec.run(["config", "get", "proxy"], home).stdout.should contain("s3cretpass")
+    end
+  end
+
   it "inspects a single credential with `cred show` (masked, reveal, json)" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
