@@ -24,23 +24,28 @@ module Authz0::CLI
 
     Add/update options:
       --method M           HTTP method (default GET)
+      --path P             Change the path/URL (update only)
       --body TEXT          Request body
       --content-type T     json | form
-      --allow-role R[,R]   Roles allowed (repeatable)
-      --deny-role R[,R]    Roles denied (repeatable)
-      --header "K: V"      Per-request header (repeatable)
+      --allow-role R[,R]   ONLY these roles should reach it; everyone else is expected to be denied
+      --deny-role R[,R]    These roles must NOT reach it; everyone else is allowed
+      --header "K: V"      Per-request header (repeatable; update merges)
+      --remove-header K    Delete a header by name (update only, repeatable)
       --alias TEXT         Display label
       --tag T[,T]          Tags (repeatable)
+
+    A url with neither --allow-role nor --deny-role has no policy to test, so it
+    never yields a finding (the scan only checks that it's reachable).
     USAGE
 
     def run(args : Array(String))
       action = args.shift?
       case action
-      when "add"           then add(args)
-      when "list", "ls"    then list(args)
-      when "show", "info"  then show(args)
-      when "update", "set" then update(args)
-      when "remove", "rm"  then remove(args)
+      when "add"                    then add(args)
+      when "list", "ls"             then list(args)
+      when "show", "info"           then show(args)
+      when "update", "set"          then update(args)
+      when "remove", "rm", "delete" then remove(args)
       when nil, "-h", "--help"
         puts USAGE
       else

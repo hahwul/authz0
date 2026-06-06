@@ -33,15 +33,15 @@ module Authz0::CLI
     def run(args : Array(String))
       action = args.shift?
       case action
-      when "new", "create" then new_session(args)
-      when "list", "ls"    then list(args)
-      when "show", "info"  then show(args)
-      when "set", "update" then set_session(args)
-      when "delete", "rm"  then delete(args)
-      when "rename"        then rename(args)
-      when "clone"         then clone(args)
-      when "export"        then export_session(args)
-      when "import"        then import_session(args)
+      when "new", "create"          then new_session(args)
+      when "list", "ls"             then list(args)
+      when "show", "info"           then show(args)
+      when "set", "update"          then set_session(args)
+      when "delete", "rm", "remove" then delete(args)
+      when "rename"                 then rename(args)
+      when "clone"                  then clone(args)
+      when "export"                 then export_session(args)
+      when "import"                 then import_session(args)
       when nil, "-h", "--help"
         puts USAGE
       else
@@ -86,7 +86,7 @@ module Authz0::CLI
       session = Store::SessionStore.create(name.not_nil!, base_url.not_nil!, description)
       Logger.success "created session '#{session.name}' (#{session.meta.base_url})"
       Logger.info "  #{session.dir}"
-      Logger.warn "creds.json stores credentials in plaintext (chmod 600) — keep this directory private"
+      Logger.warn "creds.json stores credentials in plaintext (chmod 600) — keep this directory private" unless Logger.quiet?
     end
 
     private def list(args)
@@ -305,7 +305,7 @@ module Authz0::CLI
       session.save_asserts(asserts)
       Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
       if creds.any? { |c| masked_credential?(c) }
-        Logger.warn "this bundle appears to have been exported with --redact — credential values are masked and will NOT authenticate; re-add them with `authz0 cred add #{session.name} ...`"
+        Logger.warn "this bundle appears to have been exported with --redact — credential values are masked and will NOT authenticate; set real values with `authz0 cred update #{session.name} <role> --header ...`"
       end
     rescue ex : JSON::ParseException
       raise ValidationError.new("session bundle is not valid JSON or does not match the expected schema: #{ex.message}")

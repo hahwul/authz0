@@ -41,10 +41,10 @@ module Authz0::CLI
     def run(args : Array(String))
       action = args.shift?
       case action
-      when "add"           then add(args)
-      when "list", "ls"    then list(args)
-      when "update", "set" then update(args)
-      when "remove", "rm"  then remove(args)
+      when "add"                    then add(args)
+      when "list", "ls"             then list(args)
+      when "update", "set"          then update(args)
+      when "remove", "rm", "delete" then remove(args)
       when nil, "-h", "--help"
         puts USAGE
       else
@@ -146,7 +146,8 @@ module Authz0::CLI
         session.save_creds(creds)
         Logger.success "added credential '#{role}' (#{cred.headers.size} headers, #{cred.cookies.size} cookies)"
       end
-      Logger.warn "secrets stored in plaintext at #{session.creds_path} (chmod 600)"
+      # Advisory, not a problem to fix — keep it out of -q/CI logs.
+      Logger.warn "secrets stored in plaintext at #{session.creds_path} (chmod 600)" unless Logger.quiet?
     end
 
     private def update(args)

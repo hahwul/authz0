@@ -79,10 +79,13 @@ module Authz0::CLI
 
       # OpenAPI/Postman often carry path templates (/users/{id}); those hit the
       # literal "{id}" and 404 until the user substitutes a real value.
-      templated = targets.count(&.templated?)
-      if templated > 0
-        subject = templated == 1 ? "1 url has" : "#{templated} urls have"
-        Logger.warn "#{subject} unfilled path templates ({...}) — edit them with `authz0 url update` before scanning"
+      templated = targets.select(&.templated?)
+      unless templated.empty?
+        subject = templated.size == 1 ? "1 url has" : "#{templated.size} urls have"
+        Logger.warn "#{subject} unfilled path templates ({...}) — fill them with `authz0 url update` before scanning:"
+        # Name the offenders so the user doesn't have to hunt through `url list`.
+        templated.first(10).each { |t| Logger.warn "    [#{t.id}] #{t.method} #{t.path}" }
+        Logger.warn "    … and #{templated.size - 10} more" if templated.size > 10
       end
     end
 

@@ -373,3 +373,68 @@ describe "audit regressions (CLI)" do
     end
   end
 end
+
+# ---- usability round (4-agent dogfood) ----------------------------------
+describe "usability regressions" do
+  it "warns when scanning urls that have no allow/deny policy (no silent all-clear)" do
+    SpecHelper.with_temp_home do |home|
+      SpecHelper.with_test_server do |base|
+        CLISpec.run(["session", "new", "s", "--base-url", base], home)
+        CLISpec.run(["url", "add", "s", "/secret"], home) # no policy
+        CLISpec.run(["cred", "add", "s", "u", "--header", "Authorization: Bearer usertoken123456"], home)
+        r = CLISpec.run(["scan", "s", "--no-progress", "-o", "plain"], home)
+        r.stderr.should contain("allow/deny policy")
+      end
+    end
+  end
+
+  it "warns (with did-you-mean) when a policy role has no matching credential" do
+    SpecHelper.with_temp_home do |home|
+      SpecHelper.with_test_server do |base|
+        CLISpec.run(["session", "new", "s", "--base-url", base], home)
+        CLISpec.run(["url", "add", "s", "/admin", "--allow-role", "admins"], home) # typo
+        CLISpec.run(["cred", "add", "s", "admin", "--header", "Authorization: Bearer admintoken999"], home)
+        r = CLISpec.run(["scan", "s", "--no-progress", "-o", "plain"], home)
+        r.stderr.should contain("no matching credential")
+        r.stderr.should contain("did you mean 'admin'")
+      end
+    end
+  end
+
+  it "recognizes 'anon' in an allow policy as the anonymous probe" do
+    SpecHelper.with_temp_home do |home|
+      SpecHelper.with_test_server do |base|
+        CLISpec.run(["session", "new", "s", "--base-url", base], home)
+        # /secret is open to everyone; declaring it anon-allowed must make the
+        # anonymous probe EXPECTED (verdict O), not a finding.
+        CLISpec.run(["url", "add", "s", "/secret", "--allow-role", "anon"], home)
+        r = CLISpec.run(["scan", "s", "--anon", "--no-progress", "-o", "json"], home)
+        doc = JSON.parse(r.stdout)
+        anon = doc["results"].as_a.find { |x| x["role"].as_s.empty? }.not_nil!
+        anon["expected_access"].as_bool.should be_true
+        anon["verdict"].as_s.should eq("O")
+      end
+    end
+  end
+
+  it "treats a bad flag as a usage error (exit 2) with a help hint" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      r = CLISpec.run(["scan", "s", "--bogus-flag"], home)
+      r.status.should eq(2)
+      r.stderr.should contain("--help")
+    end
+  end
+
+  it "accepts delete/remove/rm interchangeably across resources" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/a"], home)
+      CLISpec.run(["cred", "add", "s", "r", "--header", "X: Y"], home)
+      id = CLISpec.run(["url", "list", "s"], home).stdout[/\[([0-9a-f]+)\]/, 1]
+      CLISpec.run(["url", "delete", "s", id], home).status.should eq(0)   # url uses remove/rm
+      CLISpec.run(["cred", "delete", "s", "r"], home).status.should eq(0) # cred uses remove/rm
+      CLISpec.run(["session", "remove", "s"], home).status.should eq(0)   # session uses delete/rm
+    end
+  end
+end

@@ -39,8 +39,16 @@ module Authz0
         end
         String.build do |io|
           io << table.render(Table::Style::Box, @color) << '\n'
+          io << legend_line << '\n'
           io << summary_line(Summary.new(results))
         end
+      end
+
+      # One-line key for the Verdict column glyphs — new users have no other way
+      # to learn what O/X/? mean.
+      private def legend_line : String
+        text = "Verdict: O = access as expected · X = finding · ? = request error"
+        @color && @box ? text.colorize(:dark_gray).to_s : text
       end
 
       private def render_plain(results : Array(Result)) : String

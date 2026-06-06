@@ -192,11 +192,20 @@ module Authz0
           return {"O", accessible}
         end
 
-        expected = target.allow_roles.empty? ? true : target.allow_roles.includes?(role)
-        expected = false if target.deny_roles.includes?(role)
+        expected = target.allow_roles.empty? ? true : role_in?(target.allow_roles, role)
+        expected = false if role_in?(target.deny_roles, role)
 
         verdict = (expected == accessible) ? "O" : "X"
         {verdict, expected}
+      end
+
+      # Membership test for allow/deny lists that also lets a policy name the
+      # anonymous probe as `anon`/`<anon>` (the anon credential's role is the
+      # empty string), so anonymous access can actually be declared and tested.
+      private def role_in?(list : Array(String), role : String) : Bool
+        return true if list.includes?(role)
+        return list.any? { |r| {"anon", "<anon>"}.includes?(r.downcase) } if role.empty?
+        false
       end
 
       # Merge target headers, the credential's headers, content-type and

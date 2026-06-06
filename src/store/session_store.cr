@@ -62,7 +62,8 @@ module Authz0
         unless exists?(name)
           raise NotFoundError.new(
             "no such session: #{name}",
-            "run `authz0 session list` to see sessions, or `authz0 session new #{name} --base-url <url>`"
+            "looked in #{root} (set AUTHZ0_HOME to change) — `authz0 session list` shows what's there, " \
+            "or `authz0 session new #{name} --base-url <url>`"
           )
         end
         dir = dir_for(name)

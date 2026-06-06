@@ -1,0 +1,73 @@
+---
+name: test_session
+roles:
+- name: admin
+- name: admin_test
+- name: guest
+- name: user
+urls:
+- url: http://127.0.0.1:8810/account
+  method: GET
+  contentType:
+  body:
+  allowRole: []
+  denyRole: []
+  alias:
+- url: http://127.0.0.1:8810/admin
+  method: GET
+  contentType:
+  body:
+  allowRole:
+  - admin
+  denyRole: []
+  alias:
+- url: http://127.0.0.1:8810/admin/users
+  method: GET
+  contentType:
+  body:
+  allowRole:
+  - admin
+  denyRole: []
+  alias:
+- url: http://127.0.0.1:8810/orders/1
+  method: GET
+  contentType:
+  body:
+  allowRole:
+  - admin
+  denyRole: []
+  alias:
+- url: http://127.0.0.1:8810/reports
+  method: GET
+  contentType:
+  body:
+  allowRole:
+  - admin
+  - user
+  denyRole: []
+  alias:
+- url: http://127.0.0.1:8810/admin
+  method: GET
+  contentType:
+  body:
+  allowRole: []
+  denyRole: []
+  alias:
+asserts:
+- type: fail-regex
+  value: Access Denied
+credentials:
+- rolename: admin
+  headers:
+  - 'Authorization: Bearer admintok'
+- rolename: user
+  headers:
+  - 'Authorization: Bearer usertok'
+- rolename: guest
+  headers:
+  - 'Authorization: Bearer guesttok'
+- rolename: admin_test
+  headers:
+  - 'Authorization: Bearer admintok'
+  - 'User-Agent: MyTestAgent'
+  - 'X-Custom-Header: value'

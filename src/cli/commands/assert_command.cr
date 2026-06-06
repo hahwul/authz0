@@ -35,9 +35,9 @@ module Authz0::CLI
     def run(args : Array(String))
       action = args.shift?
       case action
-      when "add"          then add(args)
-      when "list", "ls"   then list(args)
-      when "remove", "rm" then remove(args)
+      when "add"                    then add(args)
+      when "list", "ls"             then list(args)
+      when "remove", "rm", "delete" then remove(args)
       when nil, "-h", "--help"
         puts USAGE
       else
@@ -97,7 +97,9 @@ module Authz0::CLI
       asserts = session.asserts
       added = 0
       rules.each do |rule|
-        Logger.warn "unknown assert type '#{rule.type}' — it will be ignored by scan" unless rule.valid_type?
+        unless rule.valid_type?
+          Logger.warn "unknown assert type '#{rule.type}' — it will be ignored by scan (valid: #{Assertion::TYPES.join(", ")})"
+        end
         # De-dupe identical rules.
         next if asserts.any? { |a| a.type == rule.type && a.value == rule.value }
         asserts << rule

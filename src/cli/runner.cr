@@ -84,7 +84,9 @@ module Authz0
         flag = (ex.message || "").split(": ", 2).last
         msg = ex.is_a?(OptionParser::MissingOption) ? "option '#{flag}' needs a value" : "unknown option '#{flag}'"
         Logger.error msg
-        exit 1
+        STDERR.puts "  run 'authz0 <command> --help' to see valid options"
+        # A bad flag is a usage error, like other ValidationErrors → exit 2.
+        exit 2
       rescue ex : Exception
         # A consumer closing the pipe (`authz0 … | head`) raises EPIPE on our
         # next write — exit cleanly (128 + SIGPIPE 13) rather than shouting.
@@ -208,8 +210,8 @@ module Authz0
         puts ""
         puts "Quickstart:"
         puts "  authz0 session new demo --base-url https://api.example.com"
-        puts "  authz0 url add demo /admin --deny-role user"
-        puts "  authz0 cred add demo user --header \"Authorization: Bearer …\""
+        puts "  authz0 url add demo /admin --allow-role admin   # only admin may reach it"
+        puts "  authz0 cred add demo admin --header \"Authorization: Bearer …\""
         puts "  authz0 scan demo"
         puts ""
       end

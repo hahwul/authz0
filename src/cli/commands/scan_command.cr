@@ -10,6 +10,7 @@ require "../../store/session"
 require "../../utils/config"
 require "../../utils/errors"
 require "../../utils/logger"
+require "../../utils/suggester"
 require "../../utils/validator"
 
 module Authz0::CLI
@@ -174,6 +175,7 @@ module Authz0::CLI
 
       Logger.info "scanning #{source_label} — #{pluralize(targets.size, "url")} × #{creds_label(creds)}#{via}"
       maybe_warn_insecure_tls(insecure, targets, base_url)
+      warn_policy_gaps(targets, creds)
 
       options = Scan::Options.new(
         concurrency: concurrency,
@@ -204,6 +206,14 @@ module Authz0::CLI
       color = format.table? && STDOUT.tty? && Logger.color_enabled?
       puts Report.render(display, format, color)
 
+      # A scope-reduced scan (--tag/--match) only covered a subset of the
+      # session, so don't let it become the "latest" archive — that would hide
+      # findings from the un-scanned urls in `stats`, `results`, and
+      # `--baseline latest`. Keep it with --save if you want a copy.
+      if save_results && (tag_filter || match_filter)
+        save_results = false
+        Logger.info "partial scan (--tag/--match) — not archived as latest; use --save FILE to keep it"
+      end
       # Archive a structured copy inside the session unless told not to.
       if save_results && (s = session)
         archive_results(s, results)
@@ -312,6 +322,44 @@ module Authz0::CLI
       end
       File.write(path, Report.render(results, Report::Format::Json, false))
       Logger.debug "results archived to #{path}"
+    end
+
+    # Whether a policy role token refers to the anonymous (no-auth) probe.
+    private def anon_role?(role : String) : Bool
+      r = role.strip.downcase
+      r.empty? || r == "anon" || r == "<anon>"
+    end
+
+    # Surface the two silent traps a fresh user/agent hits, since a security
+    # tool returning a confidently-wrong "all clear" or a phantom finding is the
+    # worst UX failure: (1) urls with no allow/deny policy can never produce a
+    # finding (the scan only checks reachability), and (2) an allow/deny role
+    # that matches no credential is almost always a typo — it goes unprobed and
+    # skews verdicts. Both are advisory warnings, not errors.
+    private def warn_policy_gaps(targets, creds)
+      return if Logger.quiet?
+
+      no_policy = targets.count { |t| t.allow_roles.empty? && t.deny_roles.empty? }
+      if no_policy == targets.size
+        Logger.warn "no url has an allow/deny policy — without one a scan can't flag an " \
+                    "authorization mismatch (set --allow-role/--deny-role on your urls); " \
+                    "this run only checks reachability"
+      elsif no_policy > 0
+        subject = no_policy == 1 ? "1 url has" : "#{no_policy} urls have"
+        Logger.warn "#{subject} no allow/deny policy and can't produce a finding"
+      end
+
+      known = creds.map(&.role).reject(&.empty?).to_set
+      referenced = Set(String).new
+      targets.each do |t|
+        t.allow_roles.each { |r| referenced << r }
+        t.deny_roles.each { |r| referenced << r }
+      end
+      referenced.reject { |r| known.includes?(r) || anon_role?(r) }.each do |r|
+        hint = Suggester.suggest(r, known.to_a)
+        suffix = hint ? " (did you mean '#{hint}'?)" : ""
+        Logger.warn "policy role '#{r}' has no matching credential#{suffix} — it won't be probed; a typo here can cause phantom findings"
+      end
     end
 
     # Warn that TLS verification is off — but only when it actually applies:

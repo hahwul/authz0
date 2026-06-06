@@ -1,0 +1,11 @@
+[
+  {
+    "id": "e17d7033",
+    "path": "/admin",
+    "method": "GET",
+    "headers": {},
+    "allow_roles": [],
+    "deny_roles": [],
+    "tags": []
+  }
+]
