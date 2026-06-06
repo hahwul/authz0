@@ -124,11 +124,13 @@ module Authz0::CLI
 
     private def list(args)
       role : String? = nil
+      tag : String? = nil
       json_mode = false
       positional = [] of String
       OptionParser.parse(args) do |p|
-        p.banner = "Usage: authz0 url list <session> [--role R] [--json]"
+        p.banner = "Usage: authz0 url list <session> [--role R] [--tag T] [--json]"
         p.on("--role R", "Only endpoints that name this role") { |v| role = v }
+        p.on("--tag T", "Only endpoints carrying this tag") { |v| tag = v }
         p.on("--json", "Output as JSON") { json_mode = true }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
@@ -137,6 +139,9 @@ module Authz0::CLI
       urls = session.urls
       if r = role
         urls = urls.select { |u| u.allow_roles.includes?(r) || u.deny_roles.includes?(r) }
+      end
+      if t = tag
+        urls = urls.select { |u| u.tags.includes?(t) }
       end
 
       if json_mode
@@ -151,7 +156,8 @@ module Authz0::CLI
         allow = u.allow_roles.empty? ? "<all>" : u.allow_roles.join(",")
         deny = u.deny_roles.empty? ? "-" : u.deny_roles.join(",")
         label = u.alias && !u.alias.try(&.empty?) ? " (#{u.alias})" : ""
-        puts "##{i}  [#{u.id}]  #{u.method.ljust(6)} #{u.path}#{label}  allow=#{allow} deny=#{deny}"
+        tags = u.tags.empty? ? "" : "  tags=#{u.tags.join(",")}"
+        puts "##{i}  [#{u.id}]  #{u.method.ljust(6)} #{u.path}#{label}  allow=#{allow} deny=#{deny}#{tags}"
       end
     end
 
