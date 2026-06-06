@@ -59,6 +59,7 @@ module Authz0::CLI
       headers : Hash(String, String),
       alias_label : String?,
       tags : Array(String),
+      path : String?,
       seen : Set(String),
       positional : Array(String)
 
@@ -71,11 +72,13 @@ module Authz0::CLI
       headers = {} of String => String
       alias_label : String? = nil
       tags = [] of String
+      new_path : String? = nil
       seen = Set(String).new
       positional = [] of String
 
       OptionParser.parse(args) do |p|
         p.banner = banner
+        p.on("--path P", "Change the path/URL (update only)") { |v| new_path = v; seen << "path" }
         p.on("--method M", "HTTP method") { |v| method = Validator.http_method!(v); seen << "method" }
         p.on("--body TEXT", "Request body") { |v| body = v; seen << "body" }
         p.on("--content-type T", "json | form") { |v| content_type = v; seen << "content_type" }
@@ -93,7 +96,7 @@ module Authz0::CLI
       end
 
       UrlOpts.new(method, body, content_type, allow_roles.uniq, deny_roles.uniq,
-        headers, alias_label, tags.uniq, seen, positional)
+        headers, alias_label, tags.uniq, new_path, seen, positional)
     end
 
     private def add(args)
@@ -205,6 +208,11 @@ module Authz0::CLI
       raise NotFoundError.new("no url matching '#{id}' in session '#{session.name}'") if idx.nil?
       url = urls[idx]
 
+      if o.seen.includes?("path")
+        np = o.path
+        raise ValidationError.new("--path is empty") if np.nil? || np.empty?
+        url.path = np
+      end
       url.method = o.method.not_nil! if o.seen.includes?("method")
       url.body = o.body if o.seen.includes?("body")
       url.content_type = o.content_type if o.seen.includes?("content_type")
