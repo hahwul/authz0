@@ -457,6 +457,21 @@ describe "usability regressions" do
     out.should contain("showing 1") # but flags that only 1 row is displayed
   end
 
+  it "drops never-auth browser headers from --from-curl but keeps auth/custom ones" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      curl = "curl 'https://x.test/' -H 'authorization: Bearer TOK' -H 'user-agent: M' " \
+             "-H 'accept: */*' -H 'sec-fetch-site: same-origin' -H 'x-api-key: KEY' -b 'sid=abc'"
+      CLISpec.run(["cred", "add", "s", "admin", "--from-curl", curl], home).status.should eq(0)
+      shown = CLISpec.run(["cred", "show", "s", "admin", "--reveal"], home).stdout
+      shown.should contain("authorization: Bearer TOK") # auth kept
+      shown.should contain("x-api-key: KEY")            # unknown/custom kept
+      shown.should contain("sid=abc")                   # cookie kept
+      shown.should_not contain("user-agent")            # browser noise dropped
+      shown.should_not contain("sec-fetch")
+    end
+  end
+
   it "warns that a repeated -r/--role keeps only the last (no silent multi-role)" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

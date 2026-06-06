@@ -54,6 +54,21 @@ module Authz0::CLI
       end
     end
 
+    # Headers a browser "copy as cURL" always carries but which are never auth
+    # credentials — dropped from --from-curl so they aren't replayed on every
+    # probe. Referer/Origin are intentionally kept (apps sometimes gate on them).
+    NON_AUTH_HEADERS = %w[
+      accept accept-encoding accept-language accept-charset user-agent dnt
+      upgrade-insecure-requests cache-control pragma connection te priority
+      host content-length content-type
+    ].to_set
+    NON_AUTH_PREFIXES = ["sec-fetch-", "sec-ch-"]
+
+    private def non_auth_header?(name : String) : Bool
+      n = name.downcase
+      NON_AUTH_HEADERS.includes?(n) || NON_AUTH_PREFIXES.any? { |p| n.starts_with?(p) }
+    end
+
     private record CredOpts,
       headers : Hash(String, String),
       cookies : Hash(String, String),
@@ -90,11 +105,25 @@ module Authz0::CLI
         end
         p.on("--from-curl CURL", "Import headers + cookies from a 'copy as cURL' command") do |v|
           parsed = CurlParser.parse(v)
-          parsed.headers.each { |k, val| headers[k] = val; seen << "headers" }
-          parsed.cookies.each { |k, val| cookies[k] = val; seen << "cookies" }
-          if parsed.headers.empty? && parsed.cookies.empty?
-            raise ValidationError.new("no -H/--header or -b/--cookie found in the curl command")
+          # A browser "copy as cURL" carries ~20 headers; only a few are auth.
+          # Drop the well-known never-auth browser headers (they'd just be
+          # replayed on every probe — noise that can trip a WAF) but keep any
+          # unrecognized header, since a custom one could be the credential.
+          dropped = [] of String
+          parsed.headers.each do |k, val|
+            if non_auth_header?(k)
+              dropped << k
+            else
+              headers[k] = val
+              seen << "headers"
+            end
           end
+          parsed.cookies.each { |k, val| cookies[k] = val; seen << "cookies" }
+          if headers.empty? && cookies.empty?
+            hint = dropped.empty? ? "no -H/--header or -b/--cookie found in the curl command" : "only non-auth browser headers found (#{dropped.join(", ")}) — pass the auth header with --header"
+            raise ValidationError.new(hint)
+          end
+          Logger.info "ignored #{dropped.size} non-auth browser header#{dropped.size == 1 ? "" : "s"} (#{dropped.join(", ")})" unless dropped.empty? || Logger.quiet?
         end
         p.on("--from-har FILE", "Extract auth headers + cookies from a HAR capture") do |v|
           creds = Importers::Har.new.credentials_from_file(v)
