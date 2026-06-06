@@ -140,12 +140,14 @@ module Authz0::CLI
         tags: o.tags,
         alias: o.alias_label,
       )
-      urls = session.urls
-      if urls.any? { |u| u.id == target.id }
-        raise ConflictError.new("that endpoint is already in the session (#{target.id})")
+      session.lock do
+        urls = session.urls
+        if urls.any? { |u| u.id == target.id }
+          raise ConflictError.new("that endpoint is already in the session (#{target.id})")
+        end
+        urls << target
+        session.save_urls(urls)
       end
-      urls << target
-      session.save_urls(urls)
       Logger.success "added [#{target.id}] #{target.method} #{target.path}"
     end
 
@@ -236,45 +238,47 @@ module Authz0::CLI
       session = open_session(o.positional[0]?)
       id = o.positional[1]?
       raise ValidationError.new("missing <id> argument") if id.nil?
-      urls = session.urls
-      idx = urls.index { |u| u.id == id } || index_from_token(urls, id)
-      raise NotFoundError.new("no url matching '#{id}' in session '#{session.name}'") if idx.nil?
-      url = urls[idx]
+      session.lock do
+        urls = session.urls
+        idx = urls.index { |u| u.id == id } || index_from_token(urls, id)
+        raise NotFoundError.new("no url matching '#{id}' in session '#{session.name}'") if idx.nil?
+        url = urls[idx]
 
-      if o.seen.includes?("path")
-        np = o.path
-        raise ValidationError.new("--path is empty") if np.nil? || np.empty?
-        url.path = np
-      end
-      url.method = o.method.not_nil! if o.seen.includes?("method")
-      url.body = o.body if o.seen.includes?("body")
-      url.content_type = o.content_type if o.seen.includes?("content_type")
-      url.allow_roles = o.allow_roles if o.seen.includes?("allow_roles")
-      url.deny_roles = o.deny_roles if o.seen.includes?("deny_roles")
-      url.alias = o.alias_label if o.seen.includes?("alias")
-      url.tags = o.tags if o.seen.includes?("tags")
-      if o.seen.includes?("headers")
-        o.headers.each { |k, v| url.headers[k] = v }
-        o.remove_headers.each { |name| url.headers.delete(name) }
-      end
+        if o.seen.includes?("path")
+          np = o.path
+          raise ValidationError.new("--path is empty") if np.nil? || np.empty?
+          url.path = np
+        end
+        url.method = o.method.not_nil! if o.seen.includes?("method")
+        url.body = o.body if o.seen.includes?("body")
+        url.content_type = o.content_type if o.seen.includes?("content_type")
+        url.allow_roles = o.allow_roles if o.seen.includes?("allow_roles")
+        url.deny_roles = o.deny_roles if o.seen.includes?("deny_roles")
+        url.alias = o.alias_label if o.seen.includes?("alias")
+        url.tags = o.tags if o.seen.includes?("tags")
+        if o.seen.includes?("headers")
+          o.headers.each { |k, v| url.headers[k] = v }
+          o.remove_headers.each { |name| url.headers.delete(name) }
+        end
 
-      # Re-key the id when the request shape changed so it stays stable.
-      new_id = ShortId.for(url.method, url.path, url.body || "")
-      # Don't let an update collapse this endpoint onto a different existing one
-      # — two urls sharing an id corrupts id-based show/remove (remove would
-      # silently delete both). `add` guards inserts the same way.
-      collides = false
-      urls.each_with_index { |u, i| collides = true if i != idx && u.id == new_id }
-      if collides
-        raise ConflictError.new(
-          "that change would duplicate an existing endpoint (#{new_id})",
-          "another endpoint already has the same method + path + body"
-        )
+        # Re-key the id when the request shape changed so it stays stable.
+        new_id = ShortId.for(url.method, url.path, url.body || "")
+        # Don't let an update collapse this endpoint onto a different existing
+        # one — two urls sharing an id corrupts id-based show/remove (remove
+        # would silently delete both). `add` guards inserts the same way.
+        collides = false
+        urls.each_with_index { |u, i| collides = true if i != idx && u.id == new_id }
+        if collides
+          raise ConflictError.new(
+            "that change would duplicate an existing endpoint (#{new_id})",
+            "another endpoint already has the same method + path + body"
+          )
+        end
+        url.id = new_id
+        urls[idx] = url
+        session.save_urls(urls)
+        Logger.success "updated [#{url.id}] #{url.method} #{url.path}"
       end
-      url.id = new_id
-      urls[idx] = url
-      session.save_urls(urls)
-      Logger.success "updated [#{url.id}] #{url.method} #{url.path}"
     end
 
     private def remove(args)
@@ -289,21 +293,23 @@ module Authz0::CLI
       token = positional[1]?
       raise ValidationError.new("missing <id|pattern> argument") if token.nil?
 
-      urls = session.urls
-      victims = match_urls(urls, token)
-      raise NotFoundError.new("no url matching '#{token}' in session '#{session.name}'") if victims.empty?
+      session.lock do
+        urls = session.urls
+        victims = match_urls(urls, token)
+        raise NotFoundError.new("no url matching '#{token}' in session '#{session.name}'") if victims.empty?
 
-      if victims.size > 1
-        unless Runtime.confirm?("remove #{victims.size} urls matching '#{token}'?")
-          Logger.info "aborted"
-          return
+        if victims.size > 1
+          unless Runtime.confirm?("remove #{victims.size} urls matching '#{token}'?")
+            Logger.info "aborted"
+            next
+          end
         end
+        victim_ids = victims.map(&.id).to_set
+        kept = urls.reject { |u| victim_ids.includes?(u.id) }
+        removed = urls.size - kept.size # actual rows dropped, not just matches
+        session.save_urls(kept)
+        Logger.success "removed #{pluralize(removed, "url")}"
       end
-      victim_ids = victims.map(&.id).to_set
-      kept = urls.reject { |u| victim_ids.includes?(u.id) }
-      removed = urls.size - kept.size # actual rows dropped, not just matches
-      session.save_urls(kept)
-      Logger.success "removed #{pluralize(removed, "url")}"
     end
 
     # Match by exact id, "#N" index, exact path/URL, or a glob over the path.

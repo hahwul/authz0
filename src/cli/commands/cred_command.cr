@@ -162,20 +162,22 @@ module Authz0::CLI
       role = o.positional[1]?
       raise ValidationError.new("missing <role> argument") if role.nil? || role.empty?
 
-      creds = session.creds
-      if existing = creds.find { |c| c.role == role }
-        # Append/merge onto the existing role rather than erroring — the
-        # incremental "add another header" flow is the common case.
-        o.headers.each { |k, v| existing.headers[k] = v }
-        o.cookies.each { |k, v| existing.cookies[k] = v }
-        existing.auth_type = o.auth_type if o.seen.includes?("auth_type")
-        session.save_creds(creds)
-        Logger.success "updated credential '#{role}' (#{existing.headers.size} headers, #{existing.cookies.size} cookies)"
-      else
-        cred = Credential.new(role.not_nil!, headers: o.headers, cookies: o.cookies, auth_type: o.auth_type)
-        creds << cred
-        session.save_creds(creds)
-        Logger.success "added credential '#{role}' (#{cred.headers.size} headers, #{cred.cookies.size} cookies)"
+      session.lock do
+        creds = session.creds
+        if existing = creds.find { |c| c.role == role }
+          # Append/merge onto the existing role rather than erroring — the
+          # incremental "add another header" flow is the common case.
+          o.headers.each { |k, v| existing.headers[k] = v }
+          o.cookies.each { |k, v| existing.cookies[k] = v }
+          existing.auth_type = o.auth_type if o.seen.includes?("auth_type")
+          session.save_creds(creds)
+          Logger.success "updated credential '#{role}' (#{existing.headers.size} headers, #{existing.cookies.size} cookies)"
+        else
+          cred = Credential.new(role.not_nil!, headers: o.headers, cookies: o.cookies, auth_type: o.auth_type)
+          creds << cred
+          session.save_creds(creds)
+          Logger.success "added credential '#{role}' (#{cred.headers.size} headers, #{cred.cookies.size} cookies)"
+        end
       end
       # Advisory, not a problem to fix — keep it out of -q/CI logs.
       Logger.warn "secrets stored in plaintext at #{session.creds_path} (chmod 600)" unless Logger.quiet?
@@ -186,15 +188,17 @@ module Authz0::CLI
       session = open_session(o.positional[0]?)
       role = o.positional[1]?
       raise ValidationError.new("missing <role> argument") if role.nil?
-      creds = session.creds
-      cred = creds.find { |c| c.role == role }
-      raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'") if cred.nil?
+      session.lock do
+        creds = session.creds
+        cred = creds.find { |c| c.role == role }
+        raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'") if cred.nil?
 
-      # update replaces the named collections wholesale (vs add's merge).
-      cred.headers = o.headers if o.seen.includes?("headers")
-      cred.cookies = o.cookies if o.seen.includes?("cookies")
-      cred.auth_type = o.auth_type if o.seen.includes?("auth_type")
-      session.save_creds(creds)
+        # update replaces the named collections wholesale (vs add's merge).
+        cred.headers = o.headers if o.seen.includes?("headers")
+        cred.cookies = o.cookies if o.seen.includes?("cookies")
+        cred.auth_type = o.auth_type if o.seen.includes?("auth_type")
+        session.save_creds(creds)
+      end
       Logger.success "updated credential '#{role}'"
     end
 
@@ -267,11 +271,13 @@ module Authz0::CLI
       session = open_session(positional[0]?)
       role = positional[1]?
       raise ValidationError.new("missing <role> argument") if role.nil?
-      creds = session.creds
-      unless creds.any? { |c| c.role == role }
-        raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'")
+      session.lock do
+        creds = session.creds
+        unless creds.any? { |c| c.role == role }
+          raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'")
+        end
+        session.save_creds(creds.reject { |c| c.role == role })
       end
-      session.save_creds(creds.reject { |c| c.role == role })
       Logger.success "removed credential '#{role}'"
     end
 

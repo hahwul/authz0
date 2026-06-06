@@ -554,6 +554,25 @@ describe "usability regressions" do
     end
   end
 
+  it "doesn't lose updates when many processes mutate one session concurrently" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      done = Channel(Nil).new
+      n = 12
+      n.times do |i|
+        # Each runs the real binary as a separate OS process — they execute
+        # concurrently; without the per-session lock several updates were lost.
+        spawn do
+          CLISpec.run(["cred", "add", "s", "r#{i}", "--header", "X-#{i}: v", "-q"], home)
+          done.send(nil)
+        end
+      end
+      n.times { done.receive }
+      roles = CLISpec.run(["cred", "list", "s"], home).stdout.lines.count(&.starts_with?("r"))
+      roles.should eq(n) # all survive (lock serializes the read-modify-write)
+    end
+  end
+
   it "removes a url by its exact path, not only by id/glob" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

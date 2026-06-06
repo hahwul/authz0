@@ -94,19 +94,21 @@ module Authz0::CLI
       end
       raise ValidationError.new("no rules given", "e.g. --success-status 200,201") if rules.empty?
 
-      asserts = session.asserts
-      added = 0
-      rules.each do |rule|
-        unless rule.valid_type?
-          Logger.warn "unknown assert type '#{rule.type}' — it will be ignored by scan (valid: #{Assertion::TYPES.join(", ")})"
+      session.lock do
+        asserts = session.asserts
+        added = 0
+        rules.each do |rule|
+          unless rule.valid_type?
+            Logger.warn "unknown assert type '#{rule.type}' — it will be ignored by scan (valid: #{Assertion::TYPES.join(", ")})"
+          end
+          # De-dupe identical rules.
+          next if asserts.any? { |a| a.type == rule.type && a.value == rule.value }
+          asserts << rule
+          added += 1
         end
-        # De-dupe identical rules.
-        next if asserts.any? { |a| a.type == rule.type && a.value == rule.value }
-        asserts << rule
-        added += 1
+        session.save_asserts(asserts)
+        Logger.success "added #{added} assert rule#{added == 1 ? "" : "s"} (#{asserts.size} total)"
       end
-      session.save_asserts(asserts)
-      Logger.success "added #{added} assert rule#{added == 1 ? "" : "s"} (#{asserts.size} total)"
     end
 
     # Type-specific value validation for generic --type/--value rules, so a bad
@@ -155,27 +157,29 @@ module Authz0::CLI
       session = open_session(positional[0]?)
       token = positional[1]?
       raise ValidationError.new("missing <index|type> argument") if token.nil?
-      asserts = session.asserts
 
       stripped = token.lstrip('#')
       forced_index = token.starts_with?('#')
       idx = stripped.to_i?
 
-      if idx && idx >= 0 && idx < asserts.size
-        removed = asserts.delete_at(idx)
-        session.save_asserts(asserts)
-        Logger.success "removed ##{idx} (#{removed.type} = #{removed.value})"
-      elsif forced_index
-        # An explicit '#N' is unambiguously an index — don't fall back to type.
-        raise NotFoundError.new("no assert at index #{stripped}")
-      else
-        # A bare token (even a numeric one like a "200" rule type) falls back to
-        # removing by type when it isn't an in-range index.
-        before = asserts.size
-        asserts.reject! { |a| a.type == token }
-        raise NotFoundError.new("no assert at index or of type '#{token}'") if asserts.size == before
-        session.save_asserts(asserts)
-        Logger.success "removed #{before - asserts.size} rule(s) of type '#{token}'"
+      session.lock do
+        asserts = session.asserts
+        if idx && idx >= 0 && idx < asserts.size
+          removed = asserts.delete_at(idx)
+          session.save_asserts(asserts)
+          Logger.success "removed ##{idx} (#{removed.type} = #{removed.value})"
+        elsif forced_index
+          # An explicit '#N' is unambiguously an index — don't fall back to type.
+          raise NotFoundError.new("no assert at index #{stripped}")
+        else
+          # A bare token (even a numeric one like a "200" rule type) falls back
+          # to removing by type when it isn't an in-range index.
+          before = asserts.size
+          asserts.reject! { |a| a.type == token }
+          raise NotFoundError.new("no assert at index or of type '#{token}'") if asserts.size == before
+          session.save_asserts(asserts)
+          Logger.success "removed #{before - asserts.size} rule(s) of type '#{token}'"
+        end
       end
     end
   end

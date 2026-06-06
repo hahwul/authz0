@@ -18,6 +18,7 @@ module Authz0
       URLS_FILE    = "urls.json"
       CREDS_FILE   = "creds.json"
       ASSERTS_FILE = "asserts.json"
+      LOCK_FILE    = ".lock"
       RESULTS_DIR  = "results"
       EXPORTS_DIR  = "exports"
 
@@ -25,6 +26,29 @@ module Authz0
       getter meta : SessionMeta
 
       def initialize(@dir : String, @meta : SessionMeta)
+      end
+
+      # Serialize a read-modify-write across processes so concurrent mutations
+      # of the same session (parallel `cred add` / `url add` / …) don't lose
+      # updates — the atomic write alone prevents a torn file, not a stale
+      # read+overwrite. Holds an exclusive advisory lock on <dir>/.lock for the
+      # block, and drops the lazily-cached collections so the block re-reads the
+      # current on-disk state under the lock. The lock releases on block exit
+      # (including on exception). Best-effort: filesystems without flock just
+      # run the block unlocked.
+      def lock(&)
+        FileUtils.mkdir_p(@dir)
+        File.open(File.join(@dir, LOCK_FILE), "w") do |f|
+          f.flock_exclusive
+          begin
+            @urls = nil
+            @creds = nil
+            @asserts = nil
+            yield
+          ensure
+            f.flock_unlock
+          end
+        end
       end
 
       def name : String

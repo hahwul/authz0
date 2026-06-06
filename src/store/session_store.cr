@@ -149,6 +149,7 @@ module Authz0
         results/
         exports/
         *.tmp
+        .lock
         GITIGNORE
       end
     end
