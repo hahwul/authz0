@@ -440,6 +440,23 @@ describe "usability regressions" do
     end
   end
 
+  it "reports the full scan scope in a filtered view's footer, not just shown rows" do
+    full = [
+      Authz0::Result.new(0, "http://x/a", "GET", "u", [] of String, ["u"],
+        accessible: true, expected_access: false, status_code: 200, resp_size: 0_i64, verdict: "X"),
+      Authz0::Result.new(1, "http://x/b", "GET", "u", [] of String, [] of String,
+        accessible: true, expected_access: true, status_code: 200, resp_size: 0_i64, verdict: "O"),
+      Authz0::Result.new(2, "http://x/c", "GET", "u", [] of String, [] of String,
+        accessible: true, expected_access: true, status_code: 200, resp_size: 0_i64, verdict: "O"),
+    ]
+    shown = [full[0]] # e.g. --only-findings
+    scope = Authz0::Report::Summary.new(full)
+    out = Authz0::Report.render(shown, Authz0::Report::Format::Plain, false, scope: scope)
+    out.should contain("3 targets") # true scope, not "1 target"
+    out.should contain("3 probes")  # not "1 probe"
+    out.should contain("showing 1") # but flags that only 1 row is displayed
+  end
+
   it "removes a url by its exact path, not only by id/glob" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

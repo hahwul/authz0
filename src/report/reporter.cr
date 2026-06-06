@@ -64,10 +64,12 @@ module Authz0
 
     # Render a result set in the requested format. `color` only affects the
     # Table format; the machine formats are always plain.
-    def self.render(results : Array(Result), format : Format, color : Bool = false) : String
+    # `scope` (the full-scan summary) lets the table/plain footer report true
+    # totals when `results` is a filtered subset; other formats ignore it.
+    def self.render(results : Array(Result), format : Format, color : Bool = false, scope : Summary? = nil) : String
       case format
-      in Format::Table    then TableReport.new(box: true, color: color).render(results)
-      in Format::Plain    then TableReport.new(box: false, color: false).render(results)
+      in Format::Table    then TableReport.new(box: true, color: color, scope: scope).render(results)
+      in Format::Plain    then TableReport.new(box: false, color: false, scope: scope).render(results)
       in Format::Markdown then MarkdownReport.new.render(results)
       in Format::Json     then JsonReport.new.render(results)
       in Format::Sarif    then SarifReport.new.render(results)

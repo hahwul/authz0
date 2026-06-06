@@ -202,9 +202,10 @@ module Authz0::CLI
       display = Scan::Triage.filter(results, only_findings, severity_filter, only_new, new_ids)
       display = Scan::Triage.sort(display, sort_by_field)
 
-      # Report → stdout. Color only for the interactive table.
+      # Report → stdout. Color only for the interactive table. Pass the full
+      # summary as scope so a filtered view's footer still reports true totals.
       color = format.table? && STDOUT.tty? && Logger.color_enabled?
-      puts Report.render(display, format, color)
+      puts Report.render(display, format, color, scope: summary)
 
       # A scope-reduced scan (--tag/--match) only covered a subset of the
       # session, so don't let it become the "latest" archive — that would hide
@@ -227,7 +228,7 @@ module Authz0::CLI
           ext = File.extname(path).lchop('.')
           save_format = Report::Format.parse?(ext) || format
         end
-        File.write(path, Report.render(display, save_format, false))
+        File.write(path, Report.render(display, save_format, false, scope: summary))
         Logger.success "report written to #{path} (#{save_format.to_s.downcase})"
       end
 

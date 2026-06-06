@@ -11,7 +11,11 @@ module Authz0
     class TableReport
       HEADERS = ["#", "Status", "Method", "Target", "Role", "Access", "Expected", "Verdict"]
 
-      def initialize(@box : Bool = true, @color : Bool = true)
+      # `scope`, when given, is the summary of the FULL scan; the footer reports
+      # those totals (and notes how many rows are shown) even when `render` is
+      # handed a filtered subset (--only-findings/--severity/--only-new). Without
+      # it the footer summarizes exactly the rows rendered.
+      def initialize(@box : Bool = true, @color : Bool = true, @scope : Summary? = nil)
       end
 
       def render(results : Array(Result)) : String
@@ -40,7 +44,7 @@ module Authz0
         String.build do |io|
           io << table.render(Table::Style::Box, @color) << '\n'
           io << legend_line << '\n'
-          io << summary_line(Summary.new(results))
+          io << summary_line(results)
         end
       end
 
@@ -58,7 +62,7 @@ module Authz0
             # Flatten cells so an embedded newline/tab can't desync TSV columns.
             io << row_for(r).map { |c| Table.oneline(c) }.join("\t") << '\n'
           end
-          io << summary_line(Summary.new(results))
+          io << summary_line(results)
         end
       end
 
@@ -91,7 +95,10 @@ module Authz0
         "#{count} #{count == 1 ? noun : "#{noun}s"}"
       end
 
-      private def summary_line(s : Summary) : String
+      private def summary_line(rendered : Array(Result)) : String
+        # Summarize the full scan scope when known, so a filtered view's footer
+        # still reports what was actually scanned, not just the shown rows.
+        s = @scope || Summary.new(rendered)
         parts = [
           pluralize(s.targets, "target"),
           pluralize(s.total, "probe"),
@@ -103,6 +110,9 @@ module Authz0
           parts << "#{s.unauthorized} unauthorized" << "#{s.over_restrictive} over-restrictive"
         end
         parts << pluralize(s.errors, "error") if s.errors > 0
+        # Make a filtered view explicit so the totals above don't read as "only
+        # these rows were scanned".
+        parts << "showing #{rendered.size}" if @scope && rendered.size < s.total
         # A scan where every probe errored reached nothing — not a clean pass.
         all_errored = s.total > 0 && s.errors == s.total
         prefix = (s.clean? && !all_errored) ? "✓" : "✗"
