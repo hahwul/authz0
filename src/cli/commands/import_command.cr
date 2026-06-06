@@ -80,7 +80,8 @@ module Authz0::CLI
       # literal "{id}" and 404 until the user substitutes a real value.
       templated = targets.count(&.templated?)
       if templated > 0
-        Logger.warn "#{templated} url#{templated == 1 ? "" : "s"} contain path templates ({...}) — edit them with `authz0 url update` before scanning"
+        subject = templated == 1 ? "1 url has" : "#{templated} urls have"
+        Logger.warn "#{subject} unfilled path templates ({...}) — edit them with `authz0 url update` before scanning"
       end
     end
 
