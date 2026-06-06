@@ -95,4 +95,28 @@ describe Authz0::Importers::V1Template do
       finding.role.should eq("manager")
     end
   end
+
+  it "round-trips: export yaml → scan template reproduces the same findings" do
+    SpecHelper.with_temp_home do
+      SpecHelper.with_test_server do |base|
+        s = Authz0::Store::SessionStore.create("rt", base)
+        s.save_urls([
+          Authz0::TargetURL.new("/secret", "GET", allow_roles: ["admin"]),
+          Authz0::TargetURL.new("/me", "GET"),
+        ])
+        s.save_creds([Authz0::Credential.new("manager", headers: {"Authorization" => "Bearer managertoken"})])
+        s.save_asserts([Authz0::Assertion.new("success-status", "200,201"), Authz0::Assertion.new("fail-status", "403")])
+
+        opts = Authz0::Scan::Options.new(progress: false, timeout: 5)
+        direct = Authz0::Scan::Scanner.new(opts).run(s.urls, s.creds, s.asserts, s.meta.base_url)
+
+        yaml = Authz0::Export::YamlExport.new(s).render
+        parsed = Authz0::Importers::V1Template.new.parse(yaml)
+        via_tpl = Authz0::Scan::Scanner.new(opts).run(parsed.targets, parsed.creds, parsed.asserts, parsed.base_url)
+
+        via_tpl.count(&.vulnerable?).should eq(direct.count(&.vulnerable?))
+        via_tpl.count(&.vulnerable?).should eq(1) # manager → /secret
+      end
+    end
+  end
 end
