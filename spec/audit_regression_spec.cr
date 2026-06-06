@@ -410,7 +410,7 @@ describe "usability regressions" do
         CLISpec.run(["url", "add", "s", "/secret", "--allow-role", "anon"], home)
         r = CLISpec.run(["scan", "s", "--anon", "--no-progress", "-o", "json"], home)
         doc = JSON.parse(r.stdout)
-        anon = doc["results"].as_a.find { |x| x["role"].as_s.empty? }.not_nil!
+        anon = doc["results"].as_a.find!(&.["role"].as_s.empty?)
         anon["expected_access"].as_bool.should be_true
         anon["verdict"].as_s.should eq("O")
       end
