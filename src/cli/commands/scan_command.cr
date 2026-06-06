@@ -42,6 +42,7 @@ module Authz0::CLI
       ad_hoc_role : String? = nil
       ad_hoc_headers = {} of String => String
       ad_hoc_cookies = {} of String => String
+      extra_headers = {} of String => String
       positional = [] of String
 
       OptionParser.parse(args) do |p|
@@ -84,6 +85,10 @@ module Authz0::CLI
         p.on("--cookie COOKIE", "Cookie for the ad-hoc role (repeatable)") do |v|
           k, val = Validator.cookie!(v)
           ad_hoc_cookies[k] = val
+        end
+        p.on("--extra-header HEADER", "Header sent with EVERY probe/role (repeatable)") do |v|
+          k, val = Validator.header!(v)
+          extra_headers[k] = val
         end
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
@@ -149,6 +154,7 @@ module Authz0::CLI
         follow_redirects: follow,
         retries: retries,
         user_agent: user_agent,
+        extra_headers: extra_headers,
       )
       scanner = Scan::Scanner.new(options)
       results = scanner.run(targets, creds, asserts, base_url)

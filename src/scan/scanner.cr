@@ -24,12 +24,16 @@ module Authz0
       property retries : Int32
       # Override the default User-Agent on every request.
       property user_agent : String?
+      # Headers added to every probe (lowest precedence — a target or
+      # credential header of the same name still wins).
+      property extra_headers : Hash(String, String)
 
       def initialize(@concurrency : Int32 = 20, @timeout : Int32 = 10,
                      @proxy : String? = nil, @insecure : Bool = true,
                      @delay_ms : Int32 = 0, @progress : Bool = true,
                      @follow_redirects : Int32 = 0, @retries : Int32 = 0,
-                     @user_agent : String? = nil)
+                     @user_agent : String? = nil,
+                     @extra_headers : Hash(String, String) = {} of String => String)
       end
     end
 
@@ -143,6 +147,8 @@ module Authz0
       # headers on conflict (the identity is what we're testing).
       private def build_headers(target : TargetURL, cred : Credential) : HTTP::Headers
         headers = HTTP::Headers.new
+        # Scan-wide headers first so a target/credential header can override.
+        @options.extra_headers.each { |k, v| headers[k] = v }
         target.headers.each { |k, v| headers[k] = v }
         cred.headers.each { |k, v| headers[k] = v }
 
