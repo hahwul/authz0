@@ -26,8 +26,12 @@ module Authz0::CLI
       delete <name> [-y]                                   Delete a session
       rename <old> <new>                                   Rename a session
       clone <source> <target>                              Copy a session
-      export <name> <file> [--redact]                      Back up a session to one JSON file
-      import <file> [--name <name>]                        Restore a session from a JSON file
+      backup <name> <file> [--redact]                      Save a session to one JSON file
+      restore <file> [--name <name>]                       Recreate a session from a backup file
+
+    (`backup`/`restore` were `export`/`import`; the old names still work. They
+    move a WHOLE session as one file — distinct from the top-level `import`
+    <type> / `export yaml`, which move endpoints/templates in and out.)
     USAGE
 
     def run(args : Array(String))
@@ -40,13 +44,24 @@ module Authz0::CLI
       when "delete", "rm", "remove" then delete(args)
       when "rename"                 then rename(args)
       when "clone"                  then clone(args)
-      when "export"                 then export_session(args)
-      when "import"                 then import_session(args)
+      when "backup"                 then export_session(args)
+      when "restore"                then import_session(args)
+      when "export" # renamed → backup; kept so existing scripts don't break
+        deprecate("session export", "session backup")
+        export_session(args)
+      when "import" # renamed → restore
+        deprecate("session import", "session restore")
+        import_session(args)
       when nil, "-h", "--help"
         puts USAGE
       else
         raise ValidationError.new("unknown session action: #{action}", "see `authz0 session --help`")
       end
+    end
+
+    # One-line nudge when a deprecated action alias is used.
+    private def deprecate(old : String, replacement : String)
+      Logger.warn "'#{old}' was renamed to '#{replacement}' — the old name still works for now" unless Logger.quiet?
     end
 
     private def set_session(args)
@@ -214,7 +229,7 @@ module Authz0::CLI
       redact = false
       positional = [] of String
       OptionParser.parse(args) do |p|
-        p.banner = "Usage: authz0 session export <name> <file> [--redact]"
+        p.banner = "Usage: authz0 session backup <name> <file> [--redact]"
         p.on("--redact", "Mask credential values (shareable, not runnable)") { redact = true }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
@@ -265,7 +280,7 @@ module Authz0::CLI
         else
           File.write(file, bundle + "\n")
         end
-        Logger.success "exported '#{session.name}' → #{file}"
+        Logger.success "backed up '#{session.name}' → #{file}"
         Logger.warn "bundle contains plaintext credentials (written chmod 600) — keep it private, or use --redact to mask" if has_secrets
       end
     end
@@ -274,7 +289,7 @@ module Authz0::CLI
       name_override : String? = nil
       positional = [] of String
       OptionParser.parse(args) do |p|
-        p.banner = "Usage: authz0 session import <file> [--name <name>]"
+        p.banner = "Usage: authz0 session restore <file> [--name <name>]"
         # Validate at parse time so `--name ""` fails fast with a clear message
         # (not an ambiguous "session name is empty" later).
         p.on("--name NAME", "Import under this name (instead of the bundle's)") { |v| name_override = Validator.session_name!(v) }
@@ -303,7 +318,7 @@ module Authz0::CLI
       session.save_urls(urls)
       session.save_creds(creds)
       session.save_asserts(asserts)
-      Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
+      Logger.success "restored session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
       if creds.any? { |c| masked_credential?(c) }
         Logger.warn "this bundle appears to have been exported with --redact — credential values are masked and will NOT authenticate; set real values with `authz0 cred update #{session.name} <role> --header ...`"
       end

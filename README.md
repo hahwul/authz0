@@ -105,14 +105,14 @@ Re-imports are idempotent: endpoints already present (same method+path+body) are
 |---|---|
 | `session new/list/show/set/delete/rename/clone` | Manage test projects |
 | `url add/list/show/update/remove` | Manage endpoints + allow/deny-role policy |
-| `cred add/list/update/remove` | Manage credentials (roles); values masked by default |
+| `cred add/list/show/update/remove` | Manage credentials (roles); values masked by default |
 | `assert add/list/remove` | Access-detection rules (success-status / fail-status / fail-regex / fail-size) |
 | `scan <session>` | Run the scan and report findings |
 | `results list/show/clean <session>` | Browse archived scans |
 | `stats` | Cross-session overview + open findings |
-| `session export/import` | Back up / restore a session as one JSON file |
-| `import <type> <session> <file>` | Load endpoints (`auto` sniffs the format; `-` = stdin) |
-| `export yaml <session> <out>` | Write a v1-compatible YAML template (`-` for stdout) |
+| `session backup/restore` | Save / recreate a whole session as one JSON file (`export`/`import` are kept as aliases) |
+| `import <type> <session> <file>` | Load endpoints into a session (`auto` sniffs the format; `-` = stdin) |
+| `export yaml <session> <out>` | Write the session as a v1-compatible YAML template (`-` for stdout) |
 | `doctor` | Sanity + credential-permission audit |
 | `config get/set/list/unset` | Global settings (proxy, concurrency, timeout, output, color, retries, follow_redirects, user_agent) |
 | `completion bash/zsh/fish` | Shell completion script |

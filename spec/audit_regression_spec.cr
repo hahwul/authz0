@@ -573,6 +573,29 @@ describe "usability regressions" do
     end
   end
 
+  it "renames session export/import to backup/restore, keeping the old names as aliases" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/a", "--allow-role", "admin"], home)
+      bk = File.tempname("bk") + ".json"
+      begin
+        # canonical verbs
+        CLISpec.run(["session", "backup", "s", bk], home).status.should eq(0)
+        r = CLISpec.run(["session", "restore", bk, "--name", "s2"], home)
+        r.status.should eq(0)
+        CLISpec.run(["url", "list", "s2"], home).stdout.should contain("/a")
+        # deprecated aliases still work, with a nudge on stderr
+        dep = CLISpec.run(["session", "export", "s", bk + "2"], home)
+        dep.status.should eq(0)
+        dep.stderr.should contain("renamed")
+        CLISpec.run(["session", "import", bk + "2", "--name", "s3"], home).status.should eq(0)
+      ensure
+        File.delete(bk) if File.exists?(bk)
+        File.delete(bk + "2") if File.exists?(bk + "2")
+      end
+    end
+  end
+
   it "removes a url by its exact path, not only by id/glob" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
