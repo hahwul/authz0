@@ -76,7 +76,7 @@ module Authz0
           target,
           r.display_role,
           bool_mark(r.accessible),
-          r.verdict == "?" ? "-" : bool_mark(r.expected_access),
+          (r.verdict == "?" || !r.has_policy?) ? "-" : bool_mark(r.expected_access),
           r.verdict,
         ]
       end

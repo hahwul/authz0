@@ -62,7 +62,7 @@ module Authz0
           target,
           r.display_role,
           r.accessible ? "yes" : "no",
-          r.verdict == "?" ? "-" : (r.expected_access ? "yes" : "no"),
+          (r.verdict == "?" || !r.has_policy?) ? "-" : (r.expected_access ? "yes" : "no"),
           r.verdict,
         ]
       end

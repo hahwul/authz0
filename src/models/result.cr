@@ -83,6 +83,13 @@ module Authz0
       Severity::None
     end
 
+    # Whether this target declared any allow/deny policy. With none, there's no
+    # expectation to test (the verdict is always O / "reachability only"), so
+    # reports show "-" for Expected rather than mirroring Access.
+    def has_policy? : Bool
+      !@allow_roles.empty? || !@deny_roles.empty?
+    end
+
     def role_in_allow? : Bool
       @allow_roles.includes?(@role)
     end

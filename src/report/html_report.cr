@@ -59,7 +59,7 @@ module Authz0
         cell(io, target)
         cell(io, r.display_role)
         cell(io, r.accessible ? "yes" : "no")
-        cell(io, r.verdict == "?" ? "—" : (r.expected_access ? "yes" : "no"))
+        cell(io, (r.verdict == "?" || !r.has_policy?) ? "—" : (r.expected_access ? "yes" : "no"))
         cell(io, r.verdict)
         cell(io, r.reason)
         io << "</tr>\n"
