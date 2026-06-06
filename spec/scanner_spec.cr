@@ -84,6 +84,30 @@ describe Authz0::Scan::Scanner do
     end
   end
 
+  it "retries transient 503s when --retries is set" do
+    SpecHelper.with_test_server do |base|
+      targets = [Authz0::TargetURL.new("/flaky", "GET")]
+      asserts = [Authz0::Assertion.new("success-status", "200")]
+      anon = [] of Authz0::Credential
+
+      # No retries: the first 503 stands.
+      once = Authz0::Scan::Scanner.new(Authz0::Scan::Options.new(progress: false, timeout: 5))
+        .run(targets, anon, asserts, base)
+      once.first.status_code.should eq(503)
+    end
+
+    SpecHelper.with_test_server do |base|
+      targets = [Authz0::TargetURL.new("/flaky", "GET")]
+      asserts = [Authz0::Assertion.new("success-status", "200")]
+      anon = [] of Authz0::Credential
+
+      # One retry: the 503 clears to 200 on the second attempt.
+      retried = Authz0::Scan::Scanner.new(Authz0::Scan::Options.new(progress: false, timeout: 5, retries: 1))
+        .run(targets, anon, asserts, base)
+      retried.first.status_code.should eq(200)
+    end
+  end
+
   it "records a request error as verdict '?' instead of crashing" do
     targets = [Authz0::TargetURL.new("/x", "GET", allow_roles: ["admin"])]
     # Nothing is listening on this port.

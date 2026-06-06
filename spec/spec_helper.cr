@@ -29,11 +29,15 @@ module SpecHelper
   # base URL. Mirrors spec/support/test_server.cr (one intentional BAC bug on
   # /admin for managers, and an unprotected /secret).
   def with_test_server(&)
+    # First hit on /flaky returns 503, subsequent hits 200 — for retry tests.
+    flaky_hits = Atomic(Int32).new(0)
     server = HTTP::Server.new do |ctx|
       path = ctx.request.path
-      # /redirect/<n> bounces to /redirect/<n-1>, landing on 200 at 0 — for
-      # redirect-follow tests.
-      if path.starts_with?("/redirect/")
+      if path == "/flaky"
+        first = flaky_hits.add(1) == 0
+        ctx.response.status_code = first ? 503 : 200
+        ctx.response.print first ? "try again" : "ok"
+      elsif path.starts_with?("/redirect/")
         n = path.split("/")[2]?.try(&.to_i?) || 0
         if n <= 0
           ctx.response.status_code = 200

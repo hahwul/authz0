@@ -41,13 +41,34 @@ module Authz0
     class HttpClient
       DEFAULT_USER_AGENT = "authz0/#{Authz0::VERSION}"
 
+      RETRY_BACKOFF_MS = 250
+
       def initialize(@timeout : Int32 = 10, @proxy : String? = nil, @insecure : Bool = true,
-                     @follow_redirects : Int32 = 0)
+                     @follow_redirects : Int32 = 0, @retries : Int32 = 0)
+      end
+
+      # Issue the request, retrying transient failures (transport errors, 429,
+      # 503) up to @retries times with linear backoff, then return the result.
+      def request(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
+        attempt = 0
+        loop do
+          response = follow(method, url, headers, body)
+          return response if attempt >= @retries || !retryable?(response)
+          attempt += 1
+          sleep((RETRY_BACKOFF_MS * attempt).milliseconds)
+        end
+      end
+
+      # A failure worth retrying: a transport error, or a rate-limit/unavailable
+      # status that commonly clears on a second attempt.
+      private def retryable?(response : HttpResponse) : Bool
+        return true unless response.ok?
+        response.status_code == 429 || response.status_code == 503
       end
 
       # Issue the request, optionally chasing up to @follow_redirects hops. The
       # returned response is the final one in the chain (or the first error).
-      def request(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
+      private def follow(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
         current_url = url
         current_method = method
         current_body = body

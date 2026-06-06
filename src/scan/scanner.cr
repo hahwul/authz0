@@ -20,11 +20,13 @@ module Authz0
       property progress : Bool
       # Max redirect hops to follow (0 = don't follow — the default).
       property follow_redirects : Int32
+      # Retries for transient failures (timeouts / 429 / 503).
+      property retries : Int32
 
       def initialize(@concurrency : Int32 = 20, @timeout : Int32 = 10,
                      @proxy : String? = nil, @insecure : Bool = true,
                      @delay_ms : Int32 = 0, @progress : Bool = true,
-                     @follow_redirects : Int32 = 0)
+                     @follow_redirects : Int32 = 0, @retries : Int32 = 0)
       end
     end
 
@@ -34,7 +36,7 @@ module Authz0
     # to produce an O (expected) / X (finding) / ? (unevaluable) verdict.
     class Scanner
       def initialize(@options : Options = Options.new)
-        @client = HttpClient.new(@options.timeout, @options.proxy, @options.insecure, @options.follow_redirects)
+        @client = HttpClient.new(@options.timeout, @options.proxy, @options.insecure, @options.follow_redirects, @options.retries)
       end
 
       private record Job, ordinal : Int32, target_index : Int32, target : TargetURL, cred : Credential
