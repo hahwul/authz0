@@ -45,6 +45,9 @@ module Authz0
       def initialize(@options : Options = Options.new)
         @client = HttpClient.new(@options.timeout, @options.proxy, @options.insecure,
           @options.follow_redirects, @options.retries, @options.user_agent)
+        @total = 0
+        @done = Atomic(Int32).new(0)
+        @found = Atomic(Int32).new(0)
       end
 
       private record Job, ordinal : Int32, target_index : Int32, target : TargetURL, cred : Credential
@@ -65,6 +68,10 @@ module Authz0
 
         slots = Array(Result?).new(jobs.size, nil)
         return [] of Result if jobs.empty?
+
+        @total = jobs.size
+        @done.set(0)
+        @found.set(0)
 
         workers = @options.concurrency
         workers = 1 if workers < 1
@@ -87,6 +94,7 @@ module Authz0
         jobs.each { |j| ch.send(j) }
         ch.close
         workers.times { done.receive }
+        clear_counter
 
         slots.compact
       end
@@ -119,7 +127,7 @@ module Authz0
           error: response.error,
           elapsed_ms: elapsed,
         )
-        log_progress(result)
+        report_progress(result)
         result
       end
 
@@ -183,8 +191,33 @@ module Authz0
         end
       end
 
-      private def log_progress(result : Result)
+      # Progress reporting. Under -v (debug) we emit a permanent line per probe
+      # (the old verbose behavior). Otherwise, on a TTY, a single in-place
+      # counter is updated — far less noise for large scans.
+      private def report_progress(result : Result)
+        done = @done.add(1) + 1
+        @found.add(1) if result.vulnerable?
         return unless @options.progress
+
+        if Logger.debug?
+          log_line(result)
+        elsif counter_tty?
+          STDERR.print("\r\e[2Kscanning #{done}/#{@total}  (#{@found.get} findings)")
+          STDERR.flush
+        end
+      end
+
+      private def clear_counter
+        return unless @options.progress && !Logger.debug? && counter_tty?
+        STDERR.print("\r\e[2K")
+        STDERR.flush
+      end
+
+      private def counter_tty? : Bool
+        STDERR.tty? && !Logger.quiet?
+      end
+
+      private def log_line(result : Result)
         status = result.error ? "ERR" : result.status_code.to_s
         role = result.role.empty? ? "<anon>" : result.role
         line = String.build do |io|
