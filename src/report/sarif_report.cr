@@ -1,4 +1,5 @@
 require "json"
+require "digest/sha1"
 require "../models/result"
 require "../utils/version"
 require "./reporter"
@@ -75,6 +76,13 @@ module Authz0
                   in Result::Severity::None then "note"
                   end
           json.field "level", level
+          # Stable identity so GitHub code scanning dedups the same finding
+          # across runs/branches (independent of row order or scan time).
+          json.field "partialFingerprints" do
+            json.object do
+              json.field "authz0/v1", fingerprint(r)
+            end
+          end
           json.field "message" do
             json.object do
               json.field "text", "#{r.method} #{r.url} as '#{r.display_role}': #{r.reason}"
@@ -106,6 +114,12 @@ module Authz0
             end
           end
         end
+      end
+
+      # Identity = rule + method + url + role (not status/size, which vary run
+      # to run). Hashed so it's a compact, opaque token.
+      private def fingerprint(r : Result) : String
+        Digest::SHA1.hexdigest("#{RULE_ID}|#{r.method}|#{r.url}|#{r.role}")
       end
     end
   end
