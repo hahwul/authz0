@@ -16,3 +16,8 @@ targets:
 crystal: ">= 1.19.0"
 
 license: MIT
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.6

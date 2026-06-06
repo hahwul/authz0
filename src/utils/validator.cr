@@ -104,7 +104,7 @@ module Authz0
     # Split a comma-separated list into trimmed, non-empty, de-duplicated
     # items. Used for --allow-role / --deny-role / --tags.
     def csv(raw : String) : Array(String)
-      raw.split(',').map(&.strip).reject(&.empty?).uniq
+      raw.split(',').map(&.strip).reject(&.empty?).uniq!
     end
 
     # Validate a comma-separated status list like "200,201,204".

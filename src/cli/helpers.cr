@@ -24,7 +24,7 @@ module Authz0
 
       # Print a block of "key: value" lines, padding keys to align values.
       def print_kv(pairs : Array({String, String}))
-        width = pairs.map { |k, _| k.size }.max? || 0
+        width = pairs.max_of? { |k, _| k.size } || 0
         pairs.each do |k, v|
           puts "#{(k + ":").ljust(width + 1)} #{v}"
         end

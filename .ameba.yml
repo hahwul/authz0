@@ -1,0 +1,24 @@
+# ameba configuration for authz0.
+# Run with: bin/ameba src/  (after `shards install`)
+
+# Single-character block parameters (|c|, |r|, |u|, |t|) are idiomatic Crystal
+# and used consistently across this codebase (and the author's other tools).
+Naming/BlockParameterName:
+  Enabled: false
+
+# Several Bool properties (Result#accessible, Options#insecure, ...) are
+# serialized to JSON under those exact names; renaming them to `?`-suffixed
+# getters would change the on-disk/report shape.
+Naming/QueryBoolMethods:
+  Enabled: false
+
+# The CLI command `run` methods are OptionParser-driven and inherently branchy;
+# the real complexity lives in declarative `p.on(...)` blocks, not control flow.
+Metrics/CyclomaticComplexity:
+  MaxComplexity: 40
+
+# Every remaining `not_nil!` is guarded by a preceding presence/`seen` check at
+# the same call site (validated in review). Flagging them adds noise without
+# surfacing a real nil risk.
+Lint/NotNil:
+  Enabled: false

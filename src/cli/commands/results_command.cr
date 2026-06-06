@@ -38,7 +38,7 @@ module Authz0::CLI
     private def archives(session) : Array(String)
       dir = session.results_dir
       return [] of String unless File.directory?(dir)
-      Dir.glob(File.join(dir, "*.json")).sort.reverse
+      Dir.glob(File.join(dir, "*.json")).sort.reverse!
     end
 
     private def list(args)

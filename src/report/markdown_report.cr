@@ -30,7 +30,7 @@ module Authz0
 
           # Most dangerous first: unauthorized-access findings before the
           # benign over-restrictive ones.
-          findings = results.select(&.vulnerable?).sort_by { |r| r.unauthorized? ? 0 : 1 }
+          findings = results.select(&.vulnerable?).sort_by! { |r| r.unauthorized? ? 0 : 1 }
           unless findings.empty?
             io << "\n## Findings\n\n"
             findings.each do |r|

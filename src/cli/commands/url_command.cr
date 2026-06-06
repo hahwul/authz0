@@ -144,7 +144,7 @@ module Authz0::CLI
         urls = urls.select { |u| u.allow_roles.includes?(r) || u.deny_roles.includes?(r) }
       end
       if t = tag
-        urls = urls.select { |u| u.tags.includes?(t) }
+        urls = urls.select(&.tags.includes?(t))
       end
 
       if json_mode
@@ -266,7 +266,7 @@ module Authz0::CLI
       end
       if token.includes?('*') || token.includes?('?')
         pattern = token
-        return urls.select { |u| File.match?(pattern, u.path) }
+        return urls.select { |target| File.match?(pattern, target.path) }
       end
       [] of TargetURL
     end

@@ -147,7 +147,7 @@ module Authz0::CLI
 
       # Narrow the scan to a subset of urls (focused re-scans on big sessions).
       if tag = tag_filter
-        targets = targets.select { |t| t.tags.includes?(tag) }
+        targets = targets.select(&.tags.includes?(tag))
         raise ValidationError.new("no urls carry the tag '#{tag}'") if targets.empty?
       end
       if pat = match_filter
@@ -156,7 +156,7 @@ module Authz0::CLI
       end
 
       raise ValidationError.new("--only-new/--fail-on-new need --baseline") if (only_new || fail_on_new) && baseline_path.nil?
-      baseline_ids = baseline_path ? load_baseline(baseline_path.not_nil!, session) : Set(String).new
+      baseline_ids = (bp = baseline_path) ? load_baseline(bp, session) : Set(String).new
 
       via = base_url.empty? ? "" : " via #{base_url}"
 

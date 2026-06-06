@@ -207,8 +207,14 @@ module Authz0
         end
       end
 
+      # The live counter is active only when progress is on, we're not in
+      # verbose (per-line) mode, and stderr is an interactive terminal.
+      private def counter_active? : Bool
+        @options.progress && !Logger.debug? && counter_tty?
+      end
+
       private def clear_counter
-        return unless @options.progress && !Logger.debug? && counter_tty?
+        return unless counter_active?
         STDERR.print("\r\e[2K")
         STDERR.flush
       end

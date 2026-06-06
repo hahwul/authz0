@@ -37,10 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: crystal-lang/install-crystal@v1
-      # authz0 is dependency-free, so formatting is the lint gate (no ameba dep
-      # to install). Keep the tree `crystal tool format`-clean.
       - name: Check formatting
         run: crystal tool format --check src spec
+      - name: Run Ameba linter
+        uses: crystal-ameba/github-action@v0.9.0
   tests:
     runs-on: ubuntu-latest
     strategy:
