@@ -104,6 +104,11 @@ module Authz0
         unless uri.scheme == "http" || uri.scheme == "https"
           return HttpResponse.errored("unsupported scheme: #{uri.scheme}")
         end
+        # URI.parse("https:///x").host is "" (not nil); guard here so a hostless
+        # URL (e.g. from a v1 template) can't produce a malformed "CONNECT :443".
+        if uri.host.nil? || uri.host.try(&.empty?)
+          return HttpResponse.errored("target URL has no host: #{url}")
+        end
         # On a redirect hop, refresh Host to the new target; hop 0 keeps any
         # user-supplied Host.
         headers.delete("Host") if hops > 0

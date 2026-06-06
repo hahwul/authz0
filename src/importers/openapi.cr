@@ -81,10 +81,16 @@ module Authz0
       end
 
       private def json_operation?(op : YAML::Any) : Bool
-        if content = op["requestBody"]?.try(&.["content"]?).try(&.as_h?)
-          return content.keys.any? { |k| (k.as_s? || "").includes?("json") }
+        # A malformed spec can have a non-mapping operation value (e.g.
+        # `get: "summary"`); YAML::Any#[]? raises on a non-hash receiver.
+        op_h = op.as_h?
+        return false if op_h.nil?
+        if rb = op_h["requestBody"]?.try(&.as_h?)
+          if content = rb["content"]?.try(&.as_h?)
+            return content.keys.any? { |k| (k.as_s? || "").includes?("json") }
+          end
         end
-        if consumes = op["consumes"]?.try(&.as_a?)
+        if consumes = op_h["consumes"]?.try(&.as_a?)
           return consumes.any? { |c| (c.as_s? || "").includes?("json") }
         end
         false

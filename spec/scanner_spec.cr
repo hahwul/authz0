@@ -108,6 +108,13 @@ describe Authz0::Scan::Scanner do
     end
   end
 
+  it "errors gracefully (no malformed request) on a hostless URL" do
+    client = Authz0::Scan::HttpClient.new(timeout: 2)
+    resp = client.request("GET", "https:///path", HTTP::Headers.new, nil)
+    resp.ok?.should be_false
+    resp.error.not_nil!.should contain("no host")
+  end
+
   it "records a request error as verdict '?' instead of crashing" do
     targets = [Authz0::TargetURL.new("/x", "GET", allow_roles: ["admin"])]
     # Nothing is listening on this port.

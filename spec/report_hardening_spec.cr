@@ -24,10 +24,14 @@ describe "reporter hardening" do
     sarif["runs"][0]["results"].as_a.should be_empty
   end
 
-  it "escapes pipes in Markdown cells (no column desync)" do
-    rows = [r("https://x/a|b|c")]
+  it "escapes pipes in Markdown cells and keeps the source columns aligned" do
+    rows = [r("https://x/a|b|c"), r("https://x/short")]
     md = Authz0::Report.render(rows, Authz0::Report::Format::Markdown, false)
     md.should contain("a\\|b\\|c")
+    # Every table row must have identical source width (pipes escaped before
+    # the column widths are computed).
+    table_lines = md.lines.select(&.starts_with?("|"))
+    table_lines.map(&.size).uniq!.size.should eq(1)
   end
 
   it "neutralizes backticks in the Markdown findings list" do

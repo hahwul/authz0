@@ -76,13 +76,17 @@ module Authz0
           path = Importers.relativize(url, base_url)
           return TargetURL.new(path, "GET")
         end
+        # Anything other than a string or object (number/array/bool) is skipped
+        # — JSON::Any#[]? raises on a non-hash receiver.
+        h = req.as_h?
+        return nil if h.nil?
 
-        method = (req["method"]?.try(&.as_s?) || "GET").upcase
-        url = extract_url(req["url"]?)
+        method = (h["method"]?.try(&.as_s?) || "GET").upcase
+        url = extract_url(h["url"]?)
         return nil if url.nil? || url.empty?
         url = substitute(url)
 
-        body, ctype = extract_body(req["body"]?)
+        body, ctype = extract_body(h["body"]?)
         body = substitute(body) if body
         path = Importers.relativize(url, base_url)
         TargetURL.new(path, method, body: body, content_type: ctype)

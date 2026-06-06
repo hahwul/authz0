@@ -75,6 +75,13 @@ describe "importer hardening" do
       Authz0::Importers::OpenAPI.new.parse(spec, BASE).map(&.path).should eq(["/y"])
     end
 
+    it "tolerates a non-mapping operation value (get: \"string\")" do
+      spec = %({"openapi":"3.0.0","paths":{"/a":{"get":"oops"},"/b":{"post":{"requestBody":{"content":{"application/json":{}}}}}}})
+      targets = Authz0::Importers::OpenAPI.new.parse(spec, BASE)
+      targets.map { |t| {t.method, t.path} }.should eq([{"GET", "/a"}, {"POST", "/b"}])
+      targets.find! { |t| t.method == "POST" }.content_type.should eq("json")
+    end
+
     it "raises ImportError on a non-mapping root" do
       expect_raises(Authz0::ImportError) { Authz0::Importers::OpenAPI.new.parse("- a\n- b", BASE) }
     end
@@ -89,6 +96,16 @@ describe "importer hardening" do
       pm = %({"item":[
         {"request":{"method":"GET","url":12345}},
         {"request":{"method":"GET","url":["a","b"]}},
+        {"request":{"method":"GET","url":{"raw":"https://api.example.com/ok"}}}
+      ]})
+      Authz0::Importers::Postman.new.parse(pm, BASE).map(&.path).should eq(["/ok"])
+    end
+
+    it "tolerates a request that is itself a non-hash value" do
+      pm = %({"item":[
+        {"request":12345},
+        {"request":[]},
+        {"request":true},
         {"request":{"method":"GET","url":{"raw":"https://api.example.com/ok"}}}
       ]})
       Authz0::Importers::Postman.new.parse(pm, BASE).map(&.path).should eq(["/ok"])

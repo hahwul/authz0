@@ -139,18 +139,31 @@ module Authz0
       end
     end
 
-    private def render_markdown(widths : Array(Int32)) : String
+    private def render_markdown(_widths : Array(Int32)) : String
+      # Escape pipes FIRST, then size the columns on the escaped text — otherwise
+      # padding is computed from the shorter raw cell and the escaped row is
+      # wider than its column, producing ragged source.
+      esc_headers = @headers.map(&.gsub('|', "\\|"))
+      esc_rows = @rows.map { |row| row.map(&.gsub('|', "\\|")) }
+
+      widths = esc_headers.map { |h| Table.display_width(h) }
+      esc_rows.each do |row|
+        row.each_with_index do |cell, i|
+          w = Table.display_width(cell)
+          widths[i] = w if w > widths[i]
+        end
+      end
+
       String.build do |io|
-        io << "| " << @headers.map_with_index { |h, i| pad(h, widths[i], @aligns[i]) }.join(" | ") << " |" << '\n'
+        io << "| " << esc_headers.map_with_index { |h, i| pad(h, widths[i], @aligns[i]) }.join(" | ") << " |" << '\n'
         sep = widths.map_with_index do |w, i|
           @aligns[i] == :right ? "-" * (w + 1) + ":" : "-" * (w + 2)
         end
         io << "|" << sep.join("|") << "|" << '\n'
-        @rows.each_with_index do |row, ri|
-          # Escape pipes inside cells so they don't break the Markdown table.
-          cells = row.map_with_index { |c, i| pad(c.gsub('|', "\\|"), widths[i], @aligns[i]) }
+        esc_rows.each_with_index do |row, ri|
+          cells = row.map_with_index { |c, i| pad(c, widths[i], @aligns[i]) }
           io << "| " << cells.join(" | ") << " |"
-          io << '\n' unless ri == @rows.size - 1
+          io << '\n' unless ri == esc_rows.size - 1
         end
       end
     end
