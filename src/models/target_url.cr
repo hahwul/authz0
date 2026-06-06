@@ -84,5 +84,11 @@ module Authz0
       a = @alias
       a && !a.empty? ? a : path
     end
+
+    # True when the path still carries an unfilled `{template}` segment (common
+    # in OpenAPI/Postman imports), which would 404 if scanned as-is.
+    def templated? : Bool
+      @path.matches?(/\{[^}]+\}/)
+    end
   end
 end

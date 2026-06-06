@@ -66,6 +66,13 @@ module Authz0::CLI
       end
       added, skipped = Importers.merge(session, targets)
       Logger.success "imported #{added} url#{added == 1 ? "" : "s"} from #{type} (#{skipped} duplicate#{skipped == 1 ? "" : "s"} skipped)"
+
+      # OpenAPI/Postman often carry path templates (/users/{id}); those hit the
+      # literal "{id}" and 404 until the user substitutes a real value.
+      templated = targets.count(&.templated?)
+      if templated > 0
+        Logger.warn "#{templated} url#{templated == 1 ? "" : "s"} contain path templates ({...}) — edit them with `authz0 url update` before scanning"
+      end
     end
   end
 end

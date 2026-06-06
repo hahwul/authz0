@@ -42,6 +42,11 @@ describe Authz0::TargetURL do
     Authz0::TargetURL.new("/x", "GET", alias: "nice").label.should eq("nice")
     Authz0::TargetURL.new("/x", "GET").label.should eq("/x")
   end
+
+  it "detects unfilled path templates" do
+    Authz0::TargetURL.new("/users/{id}", "GET").templated?.should be_true
+    Authz0::TargetURL.new("/users/42", "GET").templated?.should be_false
+  end
 end
 
 describe Authz0::Credential do
