@@ -1,6 +1,7 @@
 require "file_utils"
 require "json"
 require "./errors"
+require "./secure_file"
 
 module Authz0
   # Path helpers and the global config file (~/.authz0/config.json). Session
@@ -104,7 +105,10 @@ module Authz0
 
     def save(path : String = Config.config_path)
       Config.ensure_home!
-      File.write(path, to_pretty_json + "\n")
+      # The proxy setting can embed credentials (http://user:pass@host), so
+      # keep config.json owner-only (0600) like creds.json rather than the
+      # umask default (often world-readable 0644).
+      SecureFile.write_private(path, to_pretty_json + "\n")
     end
 
     def effective_concurrency : Int32

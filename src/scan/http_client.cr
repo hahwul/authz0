@@ -47,6 +47,10 @@ module Authz0
 
       RETRY_BACKOFF_MS = 250
 
+      # Hard ceiling on how much of a response body we buffer (8 MB). Plenty for
+      # auth-decision pages; bounds memory against huge/hostile responses.
+      MAX_BODY_BYTES = 8_000_000_i64
+
       # Always dropped when a redirect crosses to a different origin, on top of
       # the per-request credential header names the scanner supplies — so an
       # open-redirect on the target can't exfiltrate the tester's secrets.
@@ -154,8 +158,14 @@ module Authz0
         end
         # URI.parse("https:///x").host is "" (not nil); guard here so a hostless
         # URL (e.g. from a v1 template) can't produce a malformed "CONNECT :443".
-        if uri.host.nil? || uri.host.try(&.empty?)
+        host = uri.host
+        if host.nil? || host.empty?
           return HttpResponse.errored("target URL has no host: #{url}")
+        end
+        # A host carrying CR/LF/whitespace (which URI.parse can preserve) would
+        # inject extra lines into the proxy CONNECT / Host header — reject it.
+        if host.matches?(/[[:cntrl:]\s]/)
+          return HttpResponse.errored("invalid host in URL: #{url}")
         end
         # On a redirect hop, refresh Host to the new target; hop 0 keeps any
         # user-supplied Host.
@@ -218,8 +228,13 @@ module Authz0
           client.compress = false
           target = uri.request_target
           target = "/" if target.empty?
-          response = client.exec(method, target, headers: headers, body: body)
-          to_response(response)
+          # Stream the body so we can cap it instead of letting the stdlib buffer
+          # the whole thing into a String first.
+          result = HttpResponse.errored("no response")
+          client.exec(method, target, headers: headers, body: body) do |response|
+            result = to_response(response, read_capped(response.body_io?))
+          end
+          result
         ensure
           client.close
         end
@@ -237,6 +252,7 @@ module Authz0
         socket.read_timeout = @timeout.seconds
         socket.write_timeout = @timeout.seconds
 
+        ssl = nil.as(OpenSSL::SSL::Socket::Client?)
         io : IO = socket
         host = uri.host.not_nil!
         port = uri.port || (uri.scheme == "https" ? 443 : 80)
@@ -260,18 +276,42 @@ module Authz0
           resource = uri.request_target
           resource = "/" if resource.empty?
           write_request(io, method, resource, headers, body)
-          to_response(HTTP::Client::Response.from_io(io))
+          result = HttpResponse.errored("no response")
+          HTTP::Client::Response.from_io(io) { |response| result = to_response(response, read_capped(response.body_io?)) }
+          result
         else
           # Plain HTTP through a proxy uses absolute-form request targets. The
           # Proxy-Authorization is passed to write_request (not merged into the
           # caller's headers) so it isn't carried into later redirect hops or
-          # mutated state, and stays a request-to-the-proxy concern.
-          absolute = uri.to_s
-          write_request(socket, method, absolute, headers, body, proxy_auth)
-          to_response(HTTP::Client::Response.from_io(socket))
+          # mutated state, and stays a request-to-the-proxy concern. Userinfo is
+          # stripped so a target like http://user:pass@host can't leak the
+          # credential into the proxy's access log via the request line.
+          write_request(socket, method, absolute_form(uri), headers, body, proxy_auth)
+          result = HttpResponse.errored("no response")
+          HTTP::Client::Response.from_io(socket) { |response| result = to_response(response, read_capped(response.body_io?)) }
+          result
         end
       ensure
-        socket.close if socket && !socket.closed?
+        # Close the TLS socket if we wrapped one (sync_close also closes the TCP
+        # socket and sends close_notify); otherwise close the raw socket.
+        if s = ssl
+          s.close unless s.closed?
+        elsif socket && !socket.closed?
+          socket.close
+        end
+      end
+
+      # Absolute-form request target (scheme://host[:port]/path?query) with any
+      # userinfo stripped — for plain-HTTP-through-proxy request lines.
+      private def absolute_form(uri : URI) : String
+        String.build do |s|
+          s << (uri.scheme || "http") << "://" << uri.host
+          if p = uri.port
+            s << ":" << p
+          end
+          rt = uri.request_target
+          s << (rt.empty? ? "/" : rt)
+        end
       end
 
       # "Basic base64(user:pass)" from a proxy URL's userinfo, or nil.
@@ -311,12 +351,23 @@ module Authz0
 
       # --- helpers -------------------------------------------------------
 
-      private def to_response(response : HTTP::Client::Response) : HttpResponse
-        body = response.body? || ""
+      private def to_response(response : HTTP::Client::Response, body : String) : HttpResponse
         hdrs = {} of String => String
         response.headers.each { |name, values| hdrs[name.downcase] = values.join(", ") }
         HttpResponse.new(response.status_code, body, body.bytesize.to_i64,
           redirect_location: response.headers["Location"]?, headers: hdrs)
+      end
+
+      # Read at most MAX_BODY_BYTES of a response body so a hostile or pathological
+      # response (multi-GB Content-Length / unbounded chunked stream) can't
+      # exhaust memory — each of N concurrent workers would otherwise hold a full
+      # body. We keep the body bytes verbatim (no decompression) for size/regex
+      # asserts; anything past the cap is discarded.
+      private def read_capped(io : IO?) : String
+        return "" if io.nil?
+        buf = IO::Memory.new
+        IO.copy(io, buf, MAX_BODY_BYTES)
+        buf.to_s
       end
 
       private def apply_defaults(headers : HTTP::Headers, uri : URI)

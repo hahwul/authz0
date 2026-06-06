@@ -32,11 +32,20 @@ module Authz0
     end
 
     def add(row : Array(String), color : Colorize::Color? = nil)
-      # Pad/truncate to the header arity so a short row can't desync columns.
-      normalized = Array(String).new(@headers.size) { |i| row[i]? || "" }
+      # Pad/truncate to the header arity so a short row can't desync columns,
+      # and collapse interior line terminators so one cell can't split a row
+      # across lines (breaking box/markdown alignment or forging a table row).
+      normalized = Array(String).new(@headers.size) { |i| Table.oneline(row[i]? || "") }
       @rows << normalized
       @row_colors << color
       self
+    end
+
+    # Flatten a cell to a single line: CR/LF/tab → a single space. Tables are
+    # one-row-per-line, so an embedded newline would otherwise wrap the row.
+    def self.oneline(cell : String) : String
+      return cell unless cell.includes?('\n') || cell.includes?('\r') || cell.includes?('\t')
+      cell.gsub(/[\r\n\t]+/, " ")
     end
 
     def render(style : Style = Style::Box, color : Bool = true) : String

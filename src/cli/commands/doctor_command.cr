@@ -75,6 +75,7 @@ module Authz0::CLI
     private def check_sessions
       sessions = Store::SessionStore.list
       report(Level::Ok, "sessions: #{sessions.size}")
+      check_broken_session_dirs(sessions.map(&.name).to_set)
       sessions.each do |s|
         if s.creds_world_readable?
           report(Level::Warn, "#{s.name}: creds.json is group/other-readable — run `chmod 600 #{s.creds_path}`")
@@ -96,6 +97,28 @@ module Authz0::CLI
           end
         rescue ex
           report(Level::Error, "#{s.name}: #{ex.message}")
+        end
+      end
+    end
+
+    # SessionStore.list silently skips directories whose session.json is
+    # missing/corrupt, so doctor must look at the raw directories too — a broken
+    # session is exactly what an install audit should flag (Level::Error → exit 1).
+    private def check_broken_session_dirs(healthy : Set(String))
+      root = Config.sessions_dir
+      return unless File.directory?(root)
+      Dir.children(root).sort.each do |child|
+        dir = File.join(root, child)
+        next if !File.directory?(dir) || healthy.includes?(child)
+        meta = File.join(dir, Store::Session::META_FILE)
+        looks_like_session = File.exists?(meta) ||
+                             File.exists?(File.join(dir, Store::Session::URLS_FILE)) ||
+                             File.exists?(File.join(dir, Store::Session::CREDS_FILE))
+        next unless looks_like_session
+        if File.exists?(meta)
+          report(Level::Error, "#{child}: #{Store::Session::META_FILE} is unreadable/corrupt — fix or remove #{dir}")
+        else
+          report(Level::Error, "#{child}: missing #{Store::Session::META_FILE} — fix or remove #{dir}")
         end
       end
     end

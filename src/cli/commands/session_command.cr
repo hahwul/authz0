@@ -287,13 +287,20 @@ module Authz0::CLI
       raise ValidationError.new("bundle is missing 'name' or 'base_url'") if name.nil? || base_url.nil?
       description = doc["description"]?.try(&.as_s?)
 
+      # Deserialize everything BEFORE creating the session, so a schema error
+      # (valid JSON, wrong shape) aborts with nothing written rather than
+      # leaving an empty half-imported session that blocks a retry.
+      urls = Array(TargetURL).from_json(bundle_array(doc, "urls"))
+      creds = Array(Credential).from_json(bundle_array(doc, "creds"))
+      asserts = Array(Assertion).from_json(bundle_array(doc, "asserts"))
+
       session = Store::SessionStore.create(name, base_url, description)
-      session.save_urls(Array(TargetURL).from_json(bundle_array(doc, "urls")))
-      session.save_creds(Array(Credential).from_json(bundle_array(doc, "creds")))
-      session.save_asserts(Array(Assertion).from_json(bundle_array(doc, "asserts")))
+      session.save_urls(urls)
+      session.save_creds(creds)
+      session.save_asserts(asserts)
       Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
     rescue ex : JSON::ParseException
-      raise ValidationError.new("invalid session bundle JSON: #{ex.message}")
+      raise ValidationError.new("session bundle is not valid JSON or does not match the expected schema: #{ex.message}")
     end
 
     # Re-serialize a bundle array field as JSON, tolerating a missing or null

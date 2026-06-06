@@ -26,8 +26,22 @@ module Authz0
               r.elapsed_ms.to_s,
               r.reason,
               r.error || "",
-            ])
+            ].map { |v| defang(v) })
           end
+        end
+      end
+
+      # Defang spreadsheet formula injection: a cell beginning with =, +, -, @,
+      # tab, or CR is evaluated as a live formula by Excel/LibreOffice/Sheets.
+      # Imported URLs/roles can carry such payloads (e.g. =HYPERLINK(...)), so
+      # prefix an apostrophe to force text (OWASP CSV-injection guidance).
+      private def defang(value : String) : String
+        return value if value.empty?
+        case value[0]
+        when '=', '+', '-', '@', '\t', '\r'
+          "'#{value}"
+        else
+          value
         end
       end
     end

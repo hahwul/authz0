@@ -47,7 +47,8 @@ module Authz0
         String.build do |io|
           io << HEADERS.join("\t") << '\n'
           results.each do |r|
-            io << row_for(r).join("\t") << '\n'
+            # Flatten cells so an embedded newline/tab can't desync TSV columns.
+            io << row_for(r).map { |c| Table.oneline(c) }.join("\t") << '\n'
           end
           io << summary_line(Summary.new(results))
         end

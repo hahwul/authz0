@@ -1,4 +1,5 @@
 require "colorize"
+require "../utils/config"
 require "../utils/errors"
 require "../utils/logger"
 require "../utils/runtime"
@@ -31,6 +32,12 @@ module Authz0
 
       def run(args : Array(String) = ARGV.dup)
         Runner.apply_globals!(args)
+        # Honor a persisted `color` config setting (CLI flags / NO_COLOR still
+        # win). Guarded so a corrupt config can't break unrelated commands.
+        begin
+          Logger.apply_color_setting(Settings.current.color)
+        rescue
+        end
 
         if args.empty?
           print_help
@@ -100,6 +107,9 @@ module Authz0
         --concurrency --timeout --delay --proxy --output -o --save
         --success-status --fail-status --fail-regex --fail-size
         --fail-size-margin --type --value
+        --baseline --basic --extra-header --fail-header --from-curl --from-har
+        --match --max-redirects --name --path --retries --severity --sort
+        --success-header --template --user-agent
       ]
 
       # Strip global flags from argv in place and apply them before the

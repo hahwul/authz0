@@ -99,12 +99,12 @@ module Authz0
       # --- persistence ---------------------------------------------------
 
       def save_meta
-        File.write(meta_path, @meta.to_pretty_json + "\n")
+        atomic_write(meta_path, @meta.to_pretty_json + "\n")
       end
 
       def save_urls(list : Array(TargetURL) = urls)
         @urls = list
-        File.write(urls_path, list.to_pretty_json + "\n")
+        atomic_write(urls_path, list.to_pretty_json + "\n")
         touch!
       end
 
@@ -127,15 +127,26 @@ module Authz0
 
       # Write `content` to `path` via a 0600 temp file + atomic rename.
       private def write_secure(path : String, content : String)
-        tmp = "#{path}.tmp"
+        atomic_write(path, content, 0o600)
+      end
+
+      # Atomic write: stream into a per-process-unique temp file in the same
+      # directory, then rename it into place (rename is atomic on POSIX and
+      # preserves the mode). A crash/disk-full mid-write leaves the original
+      # file intact instead of truncating it to empty/partial JSON, and the
+      # unique temp name means two concurrent writers can't clobber a shared
+      # one. When `mode` is given the file is chmod'd before any bytes are
+      # written, so secrets never touch a world-readable file.
+      private def atomic_write(path : String, content : String, mode : Int32? = nil)
+        tmp = "#{path}.#{Process.pid}.#{Random.rand(0xFFFFFFFF)}.tmp"
         begin
           File.open(tmp, "w") do |f|
-            # chmod immediately after open so the secret bytes land in an
-            # already-private file (open's perm arg is umask-masked anyway).
-            begin
-              File.chmod(tmp, 0o600)
-            rescue
-              # Filesystems without POSIX modes just skip this.
+            if m = mode
+              begin
+                File.chmod(tmp, m)
+              rescue
+                # Filesystems without POSIX modes just skip this.
+              end
             end
             f.print(content)
           end
@@ -148,7 +159,7 @@ module Authz0
 
       def save_asserts(list : Array(Assertion) = asserts)
         @asserts = list
-        File.write(asserts_path, list.to_pretty_json + "\n")
+        atomic_write(asserts_path, list.to_pretty_json + "\n")
         touch!
       end
 

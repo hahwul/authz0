@@ -86,7 +86,9 @@ module Authz0::CLI
 
       if generic_type || generic_value
         raise ValidationError.new("--type and --value must be given together") unless generic_type && generic_value
-        rules << Assertion.new(generic_type.not_nil!, generic_value.not_nil!)
+        generic_rule = Assertion.new(generic_type.not_nil!, generic_value.not_nil!)
+        validate_rule_value!(generic_rule)
+        rules << generic_rule
       end
       raise ValidationError.new("no rules given", "e.g. --success-status 200,201") if rules.empty?
 
@@ -101,6 +103,18 @@ module Authz0::CLI
       end
       session.save_asserts(asserts)
       Logger.success "added #{added} assert rule#{added == 1 ? "" : "s"} (#{asserts.size} total)"
+    end
+
+    # Type-specific value validation for generic --type/--value rules, so a bad
+    # value (e.g. a non-numeric fail-size) is rejected at add time rather than
+    # being silently dropped by the scanner, masking a real verdict.
+    private def validate_rule_value!(rule : Assertion)
+      case rule.type
+      when "fail-size", "fail-size-margin"
+        raise ValidationError.new("#{rule.type} must be a number: #{rule.value}") unless rule.value.strip.to_i64?
+      when "success-status", "fail-status"
+        Validator.status_tokens!(rule.value)
+      end
     end
 
     private def list(args)

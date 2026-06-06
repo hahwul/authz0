@@ -14,6 +14,9 @@ module Authz0
     # https://no-color.org/ is honored by default; the runner flips this via
     # --no-color / --color.
     @@no_color : Bool = ENV["NO_COLOR"]?.try(&.empty?.!) || false
+    # True once a CLI --color/--no-color flag set the value, so a persisted
+    # config `color` setting can defer to the explicit flag.
+    @@color_forced : Bool = false
 
     def quiet=(value : Bool)
       @@quiet = value
@@ -33,6 +36,16 @@ module Authz0
 
     def no_color=(value : Bool)
       @@no_color = value
+      @@color_forced = true
+    end
+
+    # Apply a persisted `color` config setting (true=on / false=off / nil=auto),
+    # but only when neither a CLI --color/--no-color flag nor the NO_COLOR env
+    # var already decided — those explicit signals win over stored config.
+    def apply_color_setting(value : Bool?)
+      return if value.nil? || @@color_forced
+      return if ENV["NO_COLOR"]?.try(&.empty?.!)
+      @@no_color = !value
     end
 
     # Color is keyed off STDERR (where these messages go). Reports that target

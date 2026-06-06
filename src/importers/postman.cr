@@ -71,9 +71,11 @@ module Authz0
       end
 
       private def build_target(req : JSON::Any, base_url : String) : TargetURL?
-        # `request` may be a bare URL string or an object.
+        # `request` may be a bare URL string or an object. Substitute {{vars}}
+        # in the bare-string form too (the object form does this below) so
+        # "{{baseUrl}}/x" resolves instead of becoming a literal 404 path.
         if url = req.as_s?
-          path = Importers.relativize(url, base_url)
+          path = Importers.relativize(substitute(url), base_url)
           return TargetURL.new(path, "GET")
         end
         # Anything other than a string or object (number/array/bool) is skipped
@@ -126,8 +128,12 @@ module Authz0
             ph = p.as_h?
             next nil if ph.nil? # skip non-object entries instead of crashing
             key = ph["key"]?.try(&.as_s?)
+            next nil if key.nil?
             val = ph["value"]?.try(&.as_s?) || ""
-            key ? "#{key}=#{val}" : nil
+            # Resolve {{vars}} first, THEN percent-encode, so a value containing
+            # '&' or '=' can't split into extra form fields (and so the encoder
+            # doesn't mangle the {{...}} placeholders).
+            "#{URI.encode_www_form(substitute(key))}=#{URI.encode_www_form(substitute(val))}"
           end.join("&")
           encoded.empty? ? {nil, nil} : {encoded, "form"}
         else

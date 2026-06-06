@@ -45,9 +45,11 @@ module Authz0
         end
       end
 
-      # Escape the Markdown control characters that matter in inline prose.
+      # Escape the Markdown control characters that matter in inline prose, and
+      # flatten line terminators so a crafted role/reason can't inject a forged
+      # table row or break out of the list item.
       private def md_escape(text : String) : String
-        text.gsub(/([`*_\[\]<>|\\])/) { |m| "\\#{m}" }
+        Table.oneline(text).gsub(/([`*_\[\]<>|\\])/) { |m| "\\#{m}" }
       end
 
       private def row_for(r : Result) : Array(String)

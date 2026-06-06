@@ -90,7 +90,10 @@ module Authz0
             meta = SessionMeta.from_json(File.read(meta_path))
             sessions << Session.new(dir, meta)
           rescue
-            Logger.debug "skipping unreadable session dir: #{child}"
+            # Surface (not silently swallow) a corrupt session.json — otherwise
+            # a session with intact urls/creds just vanishes from `session list`
+            # and the user assumes it was lost.
+            Logger.warn "skipping session '#{child}': #{Session::META_FILE} is unreadable/corrupt"
           end
         end
         sessions

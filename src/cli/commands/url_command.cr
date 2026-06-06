@@ -289,7 +289,11 @@ module Authz0::CLI
       end
       if token.includes?('*') || token.includes?('?')
         pattern = token
-        return urls.select { |target| File.match?(pattern, target.path) }
+        begin
+          return urls.select { |target| File.match?(pattern, target.path) }
+        rescue File::BadPatternError
+          raise ValidationError.new("invalid glob pattern: #{token}")
+        end
       end
       [] of TargetURL
     end

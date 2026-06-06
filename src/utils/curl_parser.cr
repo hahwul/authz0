@@ -13,6 +13,9 @@ module Authz0
 
     record Parsed, headers : Hash(String, String), cookies : Hash(String, String)
 
+    # Characters a backslash may escape inside a double-quoted shell string.
+    DOUBLE_QUOTE_ESCAPES = {'$', '`', '"', '\\', '\n'}
+
     def parse(command : String) : Parsed
       tokens = tokenize(command)
       headers = {} of String => String
@@ -84,7 +87,10 @@ module Authz0
         elsif in_double
           if c == '"'
             in_double = false
-          elsif c == '\\' && i + 1 < chars.size
+          elsif c == '\\' && i + 1 < chars.size && DOUBLE_QUOTE_ESCAPES.includes?(chars[i + 1])
+            # Inside double quotes a backslash is literal UNLESS it precedes one
+            # of $ ` " \ or newline (bash semantics) — so a Windows path like
+            # "C:\Users\me" keeps its backslashes instead of becoming "C:Usersme".
             buf << chars[i + 1]
             i += 1
           else

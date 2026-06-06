@@ -127,6 +127,50 @@ describe "audit regressions" do
   end
 end
 
+# ---- Wave 2 (MEDIUM) ----------------------------------------------------
+describe "audit regressions (wave 2)" do
+  it "fully masks short secrets instead of revealing 8 of 9 chars (#29)" do
+    Authz0::Masking.mask("passwd99x").should eq("*********")     # 9 chars → all stars
+    Authz0::Masking.mask("12345678901").should eq("***********") # 11 chars → all stars
+    Authz0::Masking.mask("123456789012").should eq("1234…9012")  # 12 chars → head…tail
+  end
+
+  it "keeps backslashes inside double-quoted curl args (#28)" do
+    parsed = Authz0::CurlParser.parse(%q{curl -H "X-Win: C:\Users\me" https://x})
+    parsed.headers["X-Win"].should eq("C:\\Users\\me")
+  end
+
+  it "defangs CSV formula injection (#18)" do
+    res = [Authz0::Result.new(0, "=2+5", "GET", "@SUM(1)", [] of String, [] of String,
+      accessible: true, expected_access: true, status_code: 200, resp_size: 0_i64, verdict: "O")]
+    rendered = Authz0::Report.render(res, Authz0::Report::Format::Csv, false)
+    rows = CSV.parse(rendered)
+    rows[1][3].should eq("'=2+5")    # url cell neutralized
+    rows[1][4].should eq("'@SUM(1)") # role cell neutralized
+  end
+
+  it "flattens embedded newlines in table cells so a row can't be forged (#30/#56)" do
+    evil = [Authz0::Result.new(0, "http://x/a\n| 200 | GET | /admin | admin | yes |", "GET",
+      "user", [] of String, [] of String,
+      accessible: true, expected_access: true, status_code: 200, resp_size: 0_i64, verdict: "O")]
+    md = Authz0::Report.render(evil, Authz0::Report::Format::Markdown, false)
+    # The url cell must not introduce a second physical line inside the table.
+    md.lines.count { |l| l.starts_with?("|") && l.includes?("/admin") }.should eq(1)
+  end
+
+  it "honors a persisted color setting but lets CLI/NO_COLOR win (#09)" do
+    # nil setting is a no-op (auto).
+    Authz0::Logger.apply_color_setting(nil)
+    # With NO_COLOR set, a config color=true must not force color on.
+    prev = ENV["NO_COLOR"]?
+    ENV["NO_COLOR"] = "1"
+    Authz0::Logger.apply_color_setting(true)
+    Authz0::Logger.color_enabled?.should be_false
+  ensure
+    prev ? (ENV["NO_COLOR"] = prev) : ENV.delete("NO_COLOR")
+  end
+end
+
 # ---- CLI-level regressions (drive the real binary) ----------------------
 describe "audit regressions (CLI)" do
   it "exits non-zero when every probe errors (no false 'clean' pass)" do
@@ -161,6 +205,43 @@ describe "audit regressions (CLI)" do
       # The admin endpoint must list as #1 (its index in the full list), not #0.
       out.should contain("#1")
       out.should_not contain("#0")
+    end
+  end
+
+  it "turns a malformed remove glob into a validation error, not a crash (#12)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/a[b"], home)
+      r = CLISpec.run(["url", "remove", "s", "/a[b*"], home)
+      r.status.should eq(2) # ValidationError, not 70 (internal error)
+      r.stderr.should contain("invalid glob")
+    end
+  end
+
+  it "leaves no half-created session when an import bundle has the wrong shape (#11)" do
+    SpecHelper.with_temp_home do |home|
+      bundle = File.tempname("bundle") + ".json"
+      File.write(bundle, %({"name":"imp","base_url":"https://x","urls":[{"method":"GET"}],"creds":[],"asserts":[]}))
+      begin
+        r = CLISpec.run(["session", "import", bundle], home)
+        r.status.should_not eq(0)
+        CLISpec.run(["session", "list", "--json"], home).stdout.should contain("[]")
+      ensure
+        File.delete(bundle) if File.exists?(bundle)
+      end
+    end
+  end
+
+  it "fails doctor when a session.json is corrupt instead of hiding it (#10)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "ok", "--base-url", "https://x.test"], home)
+      broken = File.join(home, "sessions", "broken")
+      FileUtils.mkdir_p(broken)
+      File.write(File.join(broken, "session.json"), "not json{{{")
+      File.write(File.join(broken, "urls.json"), "[]")
+      r = CLISpec.run(["doctor"], home)
+      r.status.should eq(1)
+      r.stdout.should contain("broken")
     end
   end
 end
