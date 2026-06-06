@@ -1,0 +1,28 @@
+---
+name: Generate and Upload SBOM
+on:
+  release:
+    types: [created]
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Generate SBOM
+        uses: hahwul/cyclonedx-cr@v1.0.2
+        with:
+          shard_file: ./shard.yml
+          lock_file: ./shard.lock
+          output_file: ./sbom.xml
+          output_format: xml
+          spec_version: 1.6
+
+      - name: Upload SBOM to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./sbom.xml
+          token: ${{ secrets.GITHUB_TOKEN }}

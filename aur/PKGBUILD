@@ -1,0 +1,16 @@
+# Maintainer: HAHWUL <hahwul@gmail.com>
+pkgname=authz0
+pkgver=2.0.0
+pkgrel=1
+pkgdesc="Automated authorization (access-control) testing tool written in Crystal."
+arch=('x86_64')
+url="https://github.com/hahwul/authz0"
+license=('MIT')
+# The Linux release binary is statically linked (musl), so it is self-contained.
+source=("authz0-${pkgver}::https://github.com/hahwul/authz0/releases/download/v${pkgver}/authz0-v${pkgver}-linux-x86_64")
+sha256sums=('SKIP')
+
+package() {
+  install -Dm755 "${srcdir}/authz0-${pkgver}" "${pkgdir}/usr/bin/authz0"
+  install -Dm644 "${srcdir}/../LICENSE" "${pkgdir}/usr/share/licenses/authz0/LICENSE"
+}

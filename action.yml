@@ -1,17 +1,57 @@
-name: 'Authz0 scanner'
-description: 'Unauthorized access can be identified based on URLs and Roles & Credentials.'
+name: "authz0 authorization scan"
+description: "Run an authz0 authorization (access-control) scan and emit SARIF/JSON for code scanning."
+author: "HAHWUL"
+
 branding:
-  icon: 'shield'
-  color: 'blue'
+  icon: "shield"
+  color: "blue"
+
 inputs:
-  template:  # id of input
-    description: 'Scan template contents'
-    required: true
-outputs:
-  output: 
-    description: 'JSON Result'
-runs:
-  using: 'docker'
-  image: 'github-action/Dockerfile'
+  template:
+    description: "Path to a v1-compatible YAML template to scan (relative to the workspace)."
+    required: false
+    default: ""
+  output:
+    description: "Report format: table | plain | json | markdown | sarif | html."
+    required: false
+    default: "sarif"
+  output_file:
+    description: "File to write the report to (upload this to code scanning)."
+    required: false
+    default: "authz0.sarif"
+  fail_on_findings:
+    description: "Exit the job with a non-zero status when findings are detected."
+    required: false
+    default: "false"
   args:
-    - ${{ inputs.template }}
+    description: "Extra authz0 arguments, or a full command when 'template' is empty (e.g. 'scan myproj --proxy ...')."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve authz0 image tag
+      id: resolve
+      shell: bash
+      run: |
+        # Match the image tag to the action ref: v2.0.0 -> 2.0.0, main/branch -> as-is.
+        REF="${{ github.action_ref }}"
+        TAG="${REF#v}"
+        TAG="${TAG:-latest}"
+        echo "image=ghcr.io/hahwul/authz0:${TAG}" >> "$GITHUB_OUTPUT"
+        echo "Using authz0 image: ghcr.io/hahwul/authz0:${TAG}"
+
+    - name: Run authz0
+      shell: bash
+      run: |
+        docker run --rm \
+          -v "${{ github.workspace }}":/github/workspace \
+          -w /github/workspace \
+          -e GITHUB_ACTIONS=true \
+          -e INPUT_TEMPLATE="${{ inputs.template }}" \
+          -e INPUT_OUTPUT="${{ inputs.output }}" \
+          -e INPUT_OUTPUT_FILE="${{ inputs.output_file }}" \
+          -e INPUT_FAIL_ON_FINDINGS="${{ inputs.fail_on_findings }}" \
+          -e INPUT_ARGS="${{ inputs.args }}" \
+          "${{ steps.resolve.outputs.image }}"

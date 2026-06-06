@@ -1,0 +1,51 @@
+name: authz0
+base: core24
+version: 2.0.0
+summary: Automated authorization (access-control) testing tool written in Crystal.
+description: |
+  authz0 identifies unauthorized access (broken access control) by probing the
+  same URLs with different roles & credentials and comparing observed access
+  against the declared policy. It is session-based and incremental, with imports
+  (OpenAPI/HAR/Burp/Postman), rich reports (table/JSON/Markdown/SARIF/HTML), and
+  a concurrent scanner with proxy support.
+
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict
+license: MIT
+
+apps:
+  authz0:
+    command: authz0
+    plugs:
+      - home
+      - removable-media
+      - network
+      - network-bind
+
+parts:
+  authz0:
+    source: ./
+    plugin: nil
+    override-build: |
+      curl -fsSL https://crystal-lang.org/install.sh | bash
+      shards install --production
+      shards build --release --no-debug --production
+      cp ./bin/authz0 $CRAFT_PART_INSTALL/
+    build-packages:
+      - git
+      - curl
+      - pkg-config
+      - libssl-dev
+      - libxml2-dev
+      - libyaml-dev
+      - libpcre2-dev
+      - libz-dev
+      - libgmp-dev
+      - libevent-dev
+    stage-packages:
+      - openssl
+      - ca-certificates
+      - libxml2
+      - libyaml-0-2
+      - libpcre2-8-0
+      - zlib1g

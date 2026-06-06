@@ -1,107 +1,212 @@
-<h1 align="center">
-  <br>
-  <a href=""><img src="https://user-images.githubusercontent.com/13212227/149369752-8b344201-ebc4-43b2-8d64-b1229a5ee4c2.png" alt="" width="300px;"></a>
-</h1>
+<h1 align="center">authz0 v2</h1>
+
 <p align="center">
-  <a href="https://github.com/hahwul/authz0/blob/main/CONTRIBUTING.md"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat"></a>
-  <a href="https://goreportcard.com/report/github.com/hahwul/authz0"><img src="https://goreportcard.com/badge/github.com/hahwul/authz0"></a>
-  <a href="https://github.com/hahwul/authz0/actions/workflows/go.yml"><img src="https://github.com/hahwul/authz0/actions/workflows/go.yml/badge.svg"></a>
-  <a href="https://twitter.com/intent/follow?screen_name=hahwul"><img src="https://img.shields.io/twitter/follow/hahwul?style=flat&logo=twitter"></a>
+  <b>Automated authorization (access-control) testing — session-based, incremental, AI-friendly.</b><br>
+  A Crystal rewrite of <a href="https://github.com/hahwul/authz0">authz0</a>.
 </p>
 
-
-Authz0 is an automated authorization test tool. Unauthorized access can be identified based on URLs and Roles & Credentials.
-
-URLs and Roles are managed as YAML-based templates, which can be automatically created and added through authz0. You can also test based on multiple authentication headers and cookies with a template file created/generated once.
-
-![authz0-2](https://user-images.githubusercontent.com/13212227/149650143-a34d8826-f272-4aca-b9a7-323de268cd52.jpg)
-
-## 🛸 Key Features
-* Generate scan template `$ authz0 new`
-    * Include URLs
-    * Include Roles
-    * Include ZAP history (Select URLS > Save Selected Entiries as HAR)
-    * Include Burp history (Select URLs > Save item)
-    * Include HAR file
-* Easy modify scan template (Role, URL) `$ authz0 setUrl` `$ authz0 setRole` `authz0 setCred`
-* Scanning authorization(access-control) with template `$ authz0 scan`
-* Support macOS/Windows/Linux and [Docker](https://hub.docker.com/r/hahwul/authz0/tags), [Github action](https://github.com/marketplace/actions/authz0-scan)
-
-## 🚀 Installation
-*go install*
 ```
-go install github.com/hahwul/authz0@latest
+  __ _ _   _ ___| |_ ____  / _ \
+ / _` | | | |_  / __|_  / | | | |
+| (_| | |_| |/ /| |_ / /| | |_| |
+ \__,_|\__,_/___|\__/___|\___/
 ```
 
-*homebrew*
-```
-brew tap hahwul/authz0
-brew install authz0
+authz0 identifies unauthorized access (broken access control / IDOR-style
+authorization flaws) by probing the **same URLs with different roles &
+credentials** and comparing the observed access against the policy you declare.
+
+Where v1 made you hand-write one big YAML template, **v2 builds a test session
+incrementally** with small commands (`session new`, `url add`, `cred add`,
+`scan`) — a flow that's pleasant for humans and trivial for an AI agent to
+drive command-by-command.
+
+## Highlights
+
+- **Session-based workflow** — `~/.authz0/sessions/<name>/` holds plain JSON you
+  can read, diff, and version (minus secrets).
+- **Incremental** — add URLs, roles, and rules a few at a time; no all-or-nothing template.
+- **Imports** — OpenAPI/Swagger, HAR (ZAP/Chrome/Burp), Burp XML, Postman, plain URL lists.
+- **Rich reports** — table, plain (grep-friendly), JSON, Markdown, **SARIF** (CI/code-scanning), and self-contained **HTML**.
+- **Concurrent scanner** with proxy support (route through Burp/ZAP via `--proxy`).
+- **Security-aware** — `creds.json` is `chmod 600`, secrets are masked in output, `.gitignore` is auto-created, and `doctor` audits it all.
+- **v1-compatible** — `export yaml` writes a template the original Go tool can consume.
+
+## Installation
+
+```bash
+# Homebrew (macOS / Linux)
+brew install hahwul/authz0/authz0
+
+# Arch (AUR)
+yay -S authz0
+
+# Snap
+sudo snap install authz0
+
+# Docker
+docker run --rm ghcr.io/hahwul/authz0:latest --help
+
+# Prebuilt binary (Linux static musl / macOS) — from GitHub Releases
+#   https://github.com/hahwul/authz0/releases
+
+# From source (requires Crystal >= 1.19)
+git clone https://github.com/hahwul/authz0
+cd authz0
+shards build --release        # zero runtime deps; binary at ./bin/authz0
+./bin/authz0 --help
 ```
 
-Need more information? please refer to [installation guide](https://authz0.hahwul.com/installation.html)
+`.deb`, `.rpm`, `.apk` packages and a CycloneDX SBOM are attached to each release.
 
-## 🛸 Usage
-**Available Commands:**
-```
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  new         Generate new template
-  scan        Scanning
-  setCred     Append Credential to Template
-  setRole     Append Role to Template
-  setUrl      Append URL to Template
-  version     Show version
-```
+## Quickstart
 
-### 1. Generate template
-```
-authz0 new <filename> [flags]
-```
-e.g 
-```
-authz0 new target.yaml --include-urls urls.txt
-authz0 new target.yaml --include-zap zapurls.har
-authz0 new target.yaml --include-burp burpurl.xml
-```
+```bash
+# 1. create a session against a target
+authz0 session new shop --base-url https://shop.example.com
 
-### 2. Modify template
-```
-authz0 setCred <filename> [flags]
-authz0 setRole <filename> [flags]
-authz0 setUrl <filename> [flags]
-```
-e.g 
-```
-authz0 setUrl target.yaml setUrl -u https://www.hahwul.com
-authz0 setRole target.yaml -n User1
-authz0 setCred target.yaml -n User1 -H "X-API-Key: 1234" -H "TestHeader: 12344"
+# 2. declare endpoints and their policy
+authz0 url add shop /account                       # public
+authz0 url add shop /admin       --allow-role admin   --alias "admin panel"
+authz0 url add shop /orders/1234 --deny-role  guest
+authz0 url add shop /login --method POST --content-type json --body '{"u":"x"}'
+
+# 3. add the identities to test with (secrets stay out of shell history)
+export ADMIN_JWT=...   USER_JWT=...
+authz0 cred add shop admin --header 'Authorization: Bearer ${ADMIN_JWT}'
+authz0 cred add shop user  --header 'Authorization: Bearer ${USER_JWT}'
+
+# 4. tell authz0 what "access granted" looks like (optional; defaults to 2xx)
+authz0 assert add shop --success-status 200,201 --fail-status 403
+
+# 5. scan
+authz0 scan shop                       # live table
+authz0 scan shop --output sarif --save report.sarif --fail-on-findings
 ```
 
-### 3. Scanning 
+A finding (`X`) means **observed access didn't match declared policy** — e.g. a
+`user` token reached an `admin`-only endpoint, or anonymous access succeeded on
+a protected one.
+
+## Importing
+
+```bash
+authz0 import openapi shop ./openapi.yaml     # JSON or YAML
+authz0 import har     shop ./traffic.har      # ZAP / Chrome / Burp HAR
+authz0 import burp    shop ./items.xml        # Burp "Save items" XML
+authz0 import postman shop ./collection.json  # Postman v2.x
+authz0 import urls    shop ./urls.txt         # one per line, "METHOD url" ok
 ```
-authz0 scan <filename> [flags]
+Re-imports are idempotent: endpoints already present (same method+path+body) are skipped.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `session new/list/show/set/delete/rename/clone` | Manage test projects |
+| `url add/list/show/update/remove` | Manage endpoints + allow/deny-role policy |
+| `cred add/list/update/remove` | Manage credentials (roles); values masked by default |
+| `assert add/list/remove` | Access-detection rules (success-status / fail-status / fail-regex / fail-size) |
+| `scan <session>` | Run the scan and report findings |
+| `import <type> <session> <file>` | Load endpoints from external sources |
+| `export yaml <session> <out>` | Write a v1-compatible YAML template (`-` for stdout) |
+| `doctor` | Sanity + credential-permission audit |
+| `config get/set/list/unset` | Global settings (proxy, concurrency, timeout, output, color) |
+| `completion bash/zsh/fish` | Shell completion script |
+
+Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color/--color`, `-y/--yes`.
+
+### How a verdict is decided
+
+For each `(url, role)` pair authz0 sends the request with that role's
+headers/cookies and asks the **assertions** whether the resource was accessed
+(negative signals like `fail-status`/`fail-regex` win over a 200). It compares
+that observation to the **expected** access for the role:
+
+- expected access = role is in `allow-role` (or `allow-role` is empty) **and** not in `deny-role`
+- a URL with neither allow nor deny roles has no policy to test (never a finding)
+- mismatch ⇒ `X` (finding); match ⇒ `O`; request error ⇒ `?`
+
+`scan` exits `1` only with `--fail-on-findings` (handy for CI); otherwise `0`.
+
+## CI / GitHub Action
+
+For one-shot scans (no persistent session), point `scan` at a v1-compatible
+YAML template — ideal for pipelines:
+
+```bash
+authz0 scan --template authz0.yaml --output sarif --save authz0.sarif --fail-on-findings
 ```
-e.g
+
+The published GitHub Action wraps exactly that and produces a SARIF file you can
+upload to GitHub code scanning:
+
+```yaml
+# .github/workflows/authz0.yml
+name: authz0
+on: [push]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # for the SARIF upload
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hahwul/authz0@v2
+        with:
+          template: authz0.yaml      # a v1-compatible template in your repo
+          output: sarif
+          output_file: authz0.sarif
+          fail_on_findings: "false"
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: authz0.sarif
 ```
-authz0 scan target.yaml
-authz0 scan target.yaml -r TestUser1 -H "Cookie: 1234=1234" -H "X-API-Key: 1234555"
+
+Keep secrets out of the committed template by using `env:NAME` / `${NAME}`
+header values (resolved from the job environment).
+
+## Storage layout
+
+```
+~/.authz0/
+├── config.json
+└── sessions/<name>/
+    ├── session.json     # metadata
+    ├── urls.json        # endpoints
+    ├── creds.json       # credentials (chmod 600, gitignored)
+    ├── asserts.json     # detection rules
+    ├── results/         # timestamped scan archives
+    ├── exports/
+    └── .gitignore       # excludes creds.json + results/
 ```
 
-## Github Actions
-Please read https://github.com/hahwul/authz0/tree/main/github-action
+Override the root with `AUTHZ0_HOME`.
 
-## 📖 Documents
-https://authz0.hahwul.com
+## Security notes
 
-## 🤔 Question
-Please use [discussions](https://github.com/hahwul/authz0/discussions) actively!
+Credentials are stored in plaintext (acknowledged trade-off) but handled
+carefully: `creds.json` is `chmod 600`, masked in every report and `cred list`
+(use `--reveal` to see them), kept out of git via the auto-generated
+`.gitignore`, and audited by `authz0 doctor`. Prefer `env:NAME` / `${NAME}`
+header values so tokens never touch your shell history.
 
-## 📌 Changelog
-Detailed changes for each release are documented in the [release notes](https://github.com/hahwul/authz0/releases).
+## Development
 
-## ❤️ Contributing
-Authz0's open-source project and made it with ❤️
-if you want contribute this project, please see [CONTRIBUTING.md](https://github.com/hahwul/authz0/blob/main/CONTRIBUTING.md) and Pull-Request with cool your contents.
+```bash
+crystal spec                       # run the suite (unit + live-server integration)
+crystal build src/main.cr -o authz0
+crystal tool format src spec
+```
 
-[![](/CONTRIBUTORS.svg)](https://github.com/hahwul/authz0/graphs/contributors)
+## Contributing
+
+1. Fork it (<https://github.com/hahwul/authz0/fork>)
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create a new Pull Request
+
+## License
+
+MIT — see [LICENSE](LICENSE).

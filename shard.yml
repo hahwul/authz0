@@ -1,0 +1,18 @@
+name: authz0
+version: 2.0.0
+description: |
+  Automated authorization (access-control) testing tool. Session-based,
+  incremental, AI-friendly. A Crystal rewrite of authz0 v1.
+
+authors:
+  - hahwul <hahwul@gmail.com>
+
+repository: https://github.com/hahwul/authz0
+
+targets:
+  authz0:
+    main: src/main.cr
+
+crystal: ">= 1.19.0"
+
+license: MIT
