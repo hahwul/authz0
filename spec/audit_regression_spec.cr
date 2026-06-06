@@ -457,6 +457,24 @@ describe "usability regressions" do
     out.should contain("showing 1") # but flags that only 1 row is displayed
   end
 
+  it "inspects a single credential with `cred show` (masked, reveal, json)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["cred", "add", "s", "admin", "--header", "Authorization: Bearer SUPERSECRETTOKEN"], home)
+      CLISpec.run(["cred", "add", "s", "guest", "--header", "X-Other: someothervalue"], home)
+
+      masked = CLISpec.run(["cred", "show", "s", "admin"], home)
+      masked.status.should eq(0)
+      masked.stdout.should contain("admin")
+      masked.stdout.should_not contain("SUPERSECRETTOKEN") # masked by default
+      masked.stdout.should_not contain("guest")            # only the asked-for role
+
+      CLISpec.run(["cred", "show", "s", "admin", "--reveal"], home).stdout.should contain("SUPERSECRETTOKEN")
+      JSON.parse(CLISpec.run(["cred", "show", "s", "admin", "--json"], home).stdout)["role"].as_s.should eq("admin")
+      CLISpec.run(["cred", "show", "s", "nobody"], home).status.should eq(3) # NotFound
+    end
+  end
+
   it "removes a url by its exact path, not only by id/glob" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

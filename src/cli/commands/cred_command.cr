@@ -26,6 +26,7 @@ module Authz0::CLI
     Actions:
       add <session> <role> [options]   Add/append a credential
       list <session> [--json] [--reveal]
+      show <session> <role> [--json] [--reveal]   Inspect one credential
       update <session> <role> [options]
       remove <session> <role>
 
@@ -43,6 +44,7 @@ module Authz0::CLI
       case action
       when "add"                    then add(args)
       when "list", "ls"             then list(args)
+      when "show", "info"           then show(args)
       when "update", "set"          then update(args)
       when "remove", "rm", "delete" then remove(args)
       when nil, "-h", "--help"
@@ -189,11 +191,41 @@ module Authz0::CLI
         Logger.info "no credentials — add one with `authz0 cred add #{session.name} <role> --header \"K: V\"`"
         return
       end
-      creds.each do |c|
-        puts "#{c.display_role}#{c.auth_type ? " (#{c.auth_type})" : ""}"
-        c.headers.each { |k, v| puts "  header  #{reveal ? "#{k}: #{v}" : Masking.mask_header(k, v)}" }
-        c.cookies.each { |k, v| puts "  cookie  #{k}=#{reveal ? v : Masking.mask(v)}" }
+      creds.each { |c| print_cred(c, reveal) }
+    end
+
+    # `authz0 cred show <session> <role>` — inspect ONE credential, so you can
+    # reveal a single role's secret without dumping every credential to the
+    # terminal (`cred list --reveal`). Mirrors `url show` / `session show`.
+    private def show(args)
+      json_mode = false
+      reveal = false
+      positional = [] of String
+      OptionParser.parse(args) do |p|
+        p.banner = "Usage: authz0 cred show <session> <role> [--json] [--reveal]"
+        p.on("--json", "Output as JSON (masked unless --reveal)") { json_mode = true }
+        p.on("--reveal", "Show secret values in full (dangerous)") { reveal = true }
+        p.on("-h", "--help", "Show help") { puts p; exit 0 }
+        p.unknown_args { |before, _| positional = before }
       end
+      session = open_session(positional[0]?)
+      role = positional[1]?
+      raise ValidationError.new("missing <role> argument") if role.nil?
+      cred = session.creds.find { |c| c.role == role }
+      raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'") if cred.nil?
+
+      if json_mode
+        puts JSON.build(indent: "  ") { |json| cred_object(json, cred, reveal) }
+      else
+        print_cred(cred, reveal)
+      end
+    end
+
+    # Human render of one credential (masked unless reveal). Shared by list/show.
+    private def print_cred(c : Credential, reveal : Bool)
+      puts "#{c.display_role}#{c.auth_type ? " (#{c.auth_type})" : ""}"
+      c.headers.each { |k, v| puts "  header  #{reveal ? "#{k}: #{v}" : Masking.mask_header(k, v)}" }
+      c.cookies.each { |k, v| puts "  cookie  #{k}=#{reveal ? v : Masking.mask(v)}" }
     end
 
     private def remove(args)
@@ -216,23 +248,21 @@ module Authz0::CLI
 
     private def creds_json(creds : Array(Credential), reveal : Bool) : String
       JSON.build(indent: "  ") do |json|
-        json.array do
-          creds.each do |c|
-            json.object do
-              json.field "role", c.role
-              json.field "auth_type", c.auth_type
-              json.field "headers" do
-                json.object do
-                  c.headers.each { |k, v| json.field k, reveal ? v : Masking.mask(v) }
-                end
-              end
-              json.field "cookies" do
-                json.object do
-                  c.cookies.each { |k, v| json.field k, reveal ? v : Masking.mask(v) }
-                end
-              end
-            end
-          end
+        json.array { creds.each { |c| cred_object(json, c, reveal) } }
+      end
+    end
+
+    # One credential as a JSON object (masked unless reveal). Shared by the
+    # list array and the single-credential `show --json`.
+    private def cred_object(json : JSON::Builder, c : Credential, reveal : Bool)
+      json.object do
+        json.field "role", c.role
+        json.field "auth_type", c.auth_type
+        json.field "headers" do
+          json.object { c.headers.each { |k, v| json.field k, reveal ? v : Masking.mask(v) } }
+        end
+        json.field "cookies" do
+          json.object { c.cookies.each { |k, v| json.field k, reveal ? v : Masking.mask(v) } }
         end
       end
     end
