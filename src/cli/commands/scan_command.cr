@@ -164,7 +164,7 @@ module Authz0::CLI
       # large or mutating (POST/DELETE) run.
       if dry_run
         probe_creds = creds.empty? ? [Credential.new("")] : creds
-        Logger.info "dry run: #{source_label} — #{targets.size} urls × #{creds_label(creds)} = #{targets.size * probe_creds.size} probes#{via}"
+        Logger.info "dry run: #{source_label} — #{pluralize(targets.size, "url")} × #{creds_label(creds)} = #{pluralize(targets.size * probe_creds.size, "probe")}#{via}"
         targets.each do |t|
           resolved = t.resolve(base_url)
           probe_creds.each { |c| puts "#{t.method.ljust(6)} #{resolved}  [#{c.display_role}]" }
@@ -172,8 +172,8 @@ module Authz0::CLI
         return
       end
 
-      Logger.info "scanning #{source_label} — #{targets.size} urls × #{creds_label(creds)}#{via}"
-      Logger.warn "TLS verification disabled (--secure to enforce)" if insecure && !Logger.quiet?
+      Logger.info "scanning #{source_label} — #{pluralize(targets.size, "url")} × #{creds_label(creds)}#{via}"
+      maybe_warn_insecure_tls(insecure, targets, base_url)
 
       options = Scan::Options.new(
         concurrency: concurrency,
@@ -221,6 +221,13 @@ module Authz0::CLI
         Logger.success "report written to #{path} (#{save_format.to_s.downcase})"
       end
 
+      report_outcome(summary, baseline_path, new_ids, fail_on_findings, fail_on_new)
+    end
+
+    # Final stderr summary + process exit code. Kept out of `run` so the option
+    # parsing there stays within complexity limits.
+    private def report_outcome(summary : Report::Summary, baseline_path : String?,
+                               new_ids : Set(String), fail_on_findings : Bool, fail_on_new : Bool)
       if summary.findings > 0
         if baseline_path
           n = new_ids.size
@@ -234,6 +241,13 @@ module Authz0::CLI
         end
         exit 1 if fail_on_findings
         exit 1 if fail_on_new && new_ids.size > 0
+      elsif summary.errors > 0 && summary.errors == summary.total
+        # Every probe failed to reach the target — a totally failed scan must
+        # NOT look like a clean pass (CI false-assurance otherwise).
+        Logger.error "scan reached no targets — all #{pluralize(summary.errors, "probe")} errored (check the base URL, connectivity, or --proxy)"
+        exit 1
+      elsif summary.errors > 0
+        Logger.warn "no authorization findings, but #{pluralize(summary.errors, "probe")} errored — results may be incomplete"
       else
         Logger.success "no authorization findings"
       end
@@ -246,9 +260,9 @@ module Authz0::CLI
       content =
         if path == "latest"
           return ids if session.nil?
-          files = Dir.glob(File.join(session.results_dir, "*.json")).sort
-          return ids if files.empty?
-          File.read(files.last)
+          latest = session.latest_result_file
+          return ids if latest.nil?
+          File.read(latest)
         else
           raise ValidationError.new("no such baseline file: #{path}") unless File.exists?(path)
           File.read(path)
@@ -285,9 +299,11 @@ module Authz0::CLI
 
     private def archive_results(session, results)
       FileUtils.mkdir_p(session.results_dir)
-      # Millisecond precision + a collision guard so back-to-back scans don't
-      # overwrite each other's archive (second precision used to drop one).
-      base = Time.utc.to_s("%Y%m%dT%H%M%S%3NZ")
+      # Nanosecond precision + a collision guard so back-to-back scans don't
+      # overwrite each other's archive. High precision also keeps the filename
+      # lexically chronological (the '-N' collision suffix — which would sort
+      # WRONG, '-' < '.' — effectively never fires).
+      base = Time.utc.to_s("%Y%m%dT%H%M%S%9NZ")
       path = File.join(session.results_dir, "#{base}.json")
       n = 1
       while File.exists?(path)
@@ -296,6 +312,16 @@ module Authz0::CLI
       end
       File.write(path, Report.render(results, Report::Format::Json, false))
       Logger.debug "results archived to #{path}"
+    end
+
+    # Warn that TLS verification is off — but only when it actually applies:
+    # the scan negotiates TLS for at least one target. A plain-HTTP-only scan
+    # has no certificate to verify, so the warning would just be noise.
+    private def maybe_warn_insecure_tls(insecure : Bool, targets, base_url) : Nil
+      return unless insecure
+      return if Logger.quiet?
+      return unless targets.any?(&.resolve(base_url).starts_with?("https://"))
+      Logger.warn "TLS verification disabled (--secure to enforce)"
     end
 
     private def creds_label(creds) : String

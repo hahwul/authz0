@@ -83,9 +83,7 @@ module Authz0::CLI
     end
 
     private def scan_files(session) : Array(String)
-      dir = session.results_dir
-      return [] of String unless File.directory?(dir)
-      Dir.glob(File.join(dir, "*.json")).sort
+      session.result_files # oldest → newest, mtime-ordered
     end
 
     private def summary_of(path : String) : Hash(String, Int32)?

@@ -35,10 +35,10 @@ module Authz0::CLI
       end
     end
 
+    # Archived scans newest-first (session.result_files is oldest→newest, sorted
+    # by mtime so same-millisecond collisions still order correctly).
     private def archives(session) : Array(String)
-      dir = session.results_dir
-      return [] of String unless File.directory?(dir)
-      Dir.glob(File.join(dir, "*.json")).sort.reverse!
+      session.result_files.reverse!
     end
 
     private def list(args)

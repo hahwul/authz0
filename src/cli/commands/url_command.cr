@@ -139,7 +139,15 @@ module Authz0::CLI
         p.unknown_args { |before, _| positional = before }
       end
       session = open_session(positional[0]?)
-      urls = session.urls
+      all_urls = session.urls
+      # Remember each url's index in the FULL list before filtering — `#N` must
+      # mean the same thing here as it does to remove/update/show, which always
+      # resolve `#N` against the unfiltered list. Renumbering the filtered view
+      # 0..k would make `url remove <s> 0` delete a different endpoint.
+      full_index = {} of String => Int32
+      all_urls.each_with_index { |u, i| full_index[u.id] = i }
+
+      urls = all_urls
       if r = role
         urls = urls.select { |u| u.allow_roles.includes?(r) || u.deny_roles.includes?(r) }
       end
@@ -155,7 +163,8 @@ module Authz0::CLI
         Logger.info "no urls — add one with `authz0 url add #{session.name} <path>`"
         return
       end
-      urls.each_with_index do |u, i|
+      urls.each do |u|
+        i = full_index[u.id]? || 0
         allow = u.allow_roles.empty? ? "<all>" : u.allow_roles.join(",")
         deny = u.deny_roles.empty? ? "-" : u.deny_roles.join(",")
         label = u.alias && !u.alias.try(&.empty?) ? " (#{u.alias})" : ""
@@ -223,7 +232,19 @@ module Authz0::CLI
       o.headers.each { |k, v| url.headers[k] = v } if o.seen.includes?("headers")
 
       # Re-key the id when the request shape changed so it stays stable.
-      url.id = ShortId.for(url.method, url.path, url.body || "")
+      new_id = ShortId.for(url.method, url.path, url.body || "")
+      # Don't let an update collapse this endpoint onto a different existing one
+      # — two urls sharing an id corrupts id-based show/remove (remove would
+      # silently delete both). `add` guards inserts the same way.
+      collides = false
+      urls.each_with_index { |u, i| collides = true if i != idx && u.id == new_id }
+      if collides
+        raise ConflictError.new(
+          "that change would duplicate an existing endpoint (#{new_id})",
+          "another endpoint already has the same method + path + body"
+        )
+      end
+      url.id = new_id
       urls[idx] = url
       session.save_urls(urls)
       Logger.success "updated [#{url.id}] #{url.method} #{url.path}"
@@ -252,8 +273,10 @@ module Authz0::CLI
         end
       end
       victim_ids = victims.map(&.id).to_set
-      session.save_urls(urls.reject { |u| victim_ids.includes?(u.id) })
-      Logger.success "removed #{victims.size} url#{victims.size == 1 ? "" : "s"}"
+      kept = urls.reject { |u| victim_ids.includes?(u.id) }
+      removed = urls.size - kept.size # actual rows dropped, not just matches
+      session.save_urls(kept)
+      Logger.success "removed #{pluralize(removed, "url")}"
     end
 
     # Match by exact id, "#N" index, or a glob over the path.

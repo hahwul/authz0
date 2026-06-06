@@ -53,6 +53,27 @@ module Authz0
         File.join(@dir, RESULTS_DIR)
       end
 
+      # Archived result files, oldest → newest. Ordered by modification time
+      # (with the filename as a stable tiebreaker) rather than by name: two
+      # scans in the same millisecond get a '-N' collision suffix, and '-'
+      # (0x2D) sorts BEFORE '.' (0x2E), so a plain name sort would rank the
+      # newer collision file as older and surface a stale "latest scan".
+      def result_files : Array(String)
+        return [] of String unless File.directory?(results_dir)
+        Dir.glob(File.join(results_dir, "*.json")).sort_by { |f| {result_mtime(f), f} }
+      end
+
+      # The most recent archived scan, or nil if the session was never scanned.
+      def latest_result_file : String?
+        result_files.last?
+      end
+
+      private def result_mtime(path : String) : Time
+        File.info(path).modification_time
+      rescue
+        Time.unix(0)
+      end
+
       def exports_dir : String
         File.join(@dir, EXPORTS_DIR)
       end

@@ -48,6 +48,12 @@ module Authz0
         @total = 0
         @done = Atomic(Int32).new(0)
         @found = Atomic(Int32).new(0)
+        # Serializes the live-counter writes so concurrent workers (notably
+        # under -Dpreview_mt) can't interleave bytes into a garbled line.
+        @progress_mutex = Mutex.new
+        # Flipped off once the progress consumer closes the pipe, so a broken
+        # `… | head` doesn't make every remaining probe re-hit EPIPE.
+        @progress_alive = true
       end
 
       private record Job, ordinal : Int32, target_index : Int32, target : TargetURL, cred : Credential
@@ -82,12 +88,25 @@ module Authz0
 
         workers.times do
           spawn do
-            while job = ch.receive?
-              # Distinct slot per ordinal → safe to assign without a lock.
-              slots[job.ordinal] = probe(job, base_url, asserts)
-              sleep(@options.delay_ms.milliseconds) if @options.delay_ms > 0
+            begin
+              while job = ch.receive?
+                # Distinct slot per ordinal → safe to assign without a lock. A
+                # probe is expected to capture its own transport errors, but if
+                # anything (e.g. a broken progress pipe) still escapes, record an
+                # errored result instead of letting the worker die — see below.
+                slots[job.ordinal] =
+                  begin
+                    probe(job, base_url, asserts)
+                  rescue ex
+                    errored_result(job, base_url, ex)
+                  end
+                sleep(@options.delay_ms.milliseconds) if @options.delay_ms > 0
+              end
+            ensure
+              # ALWAYS signal completion — even on an unexpected raise — or the
+              # main fiber blocks on `done.receive` forever and the scan hangs.
+              done.send(nil)
             end
-            done.send(nil)
           end
         end
 
@@ -105,8 +124,8 @@ module Authz0
         url = target.resolve(base_url)
         headers = build_headers(target, cred)
         started = Time.instant
-        response = @client.request(target.method, url, headers, target.body)
-        elapsed = (Time.instant - started).total_milliseconds.to_i
+        response = @client.request(target.method, url, headers, target.body, sensitive_headers(target, cred))
+        elapsed = (Time.instant - started).total_milliseconds.round.to_i
 
         accessible = Asserter.accessible?(response, asserts)
         verdict, expected = evaluate(target, cred.role, accessible, response)
@@ -126,6 +145,30 @@ module Authz0
           verdict: verdict,
           error: response.error,
           elapsed_ms: elapsed,
+        )
+        report_progress(result)
+        result
+      end
+
+      # Build an errored "?" result for a probe that raised unexpectedly, so one
+      # bad probe neither kills its worker nor vanishes from the report.
+      private def errored_result(job : Job, base_url : String, ex : Exception) : Result
+        target = job.target
+        result = Result.new(
+          index: job.target_index,
+          url: target.resolve(base_url),
+          method: target.method,
+          role: job.cred.role,
+          allow_roles: target.allow_roles,
+          deny_roles: target.deny_roles,
+          accessible: false,
+          expected_access: false,
+          status_code: 0,
+          resp_size: 0_i64,
+          alias: target.alias,
+          verdict: "?",
+          error: ex.message || ex.class.name,
+          elapsed_ms: 0,
         )
         report_progress(result)
         result
@@ -180,6 +223,17 @@ module Authz0
         headers
       end
 
+      # Header names that carry this probe's credentials (so the client can drop
+      # them on a cross-origin redirect). Credentials live in arbitrary header
+      # names here, plus any scan-wide --extra-header and the cookie jar.
+      private def sensitive_headers(target : TargetURL, cred : Credential) : Set(String)
+        names = Set(String).new
+        cred.headers.each_key { |k| names << k.downcase }
+        @options.extra_headers.each_key { |k| names << k.downcase }
+        names << "cookie" unless cred.cookies.empty?
+        names
+      end
+
       private def content_type_header(content_type : String?) : String
         case content_type
         when "json"
@@ -197,13 +251,23 @@ module Authz0
       private def report_progress(result : Result)
         done = @done.add(1) + 1
         @found.add(1) if result.vulnerable?
-        return unless @options.progress
+        return unless @options.progress && @progress_alive
 
-        if Logger.debug?
-          log_line(result)
-        elsif counter_tty?
-          STDERR.print("\r\e[2Kscanning #{done}/#{@total}  (#{@found.get} findings)")
-          STDERR.flush
+        # One writer at a time, and never let a closed progress pipe abort the
+        # probe: if the consumer went away (EPIPE), stop trying to draw progress
+        # — the real report still goes to stdout.
+        @progress_mutex.synchronize do
+          next unless @progress_alive
+          begin
+            if Logger.debug?
+              log_line(result)
+            elsif counter_tty?
+              STDERR.print("\r\e[2Kscanning #{done}/#{@total}  (#{@found.get} findings)")
+              STDERR.flush
+            end
+          rescue IO::Error
+            @progress_alive = false
+          end
         end
       end
 
@@ -214,9 +278,13 @@ module Authz0
       end
 
       private def clear_counter
-        return unless counter_active?
-        STDERR.print("\r\e[2K")
-        STDERR.flush
+        return unless counter_active? && @progress_alive
+        @progress_mutex.synchronize do
+          STDERR.print("\r\e[2K")
+          STDERR.flush
+        rescue IO::Error
+          @progress_alive = false
+        end
       end
 
       private def counter_tty? : Bool

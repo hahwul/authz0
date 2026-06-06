@@ -1,6 +1,7 @@
 require "yaml"
 require "../store/session"
 require "../utils/masking"
+require "../utils/secure_file"
 
 module Authz0
   module Export
@@ -102,7 +103,14 @@ module Authz0
       end
 
       def write(path : String)
-        File.write(path, render)
+        # A credential-bearing template must not land world-readable, matching
+        # creds.json's chmod-600 treatment; a redacted/secret-free one stays a
+        # normal (shareable) file.
+        if carries_secrets?
+          SecureFile.write_private(path, render)
+        else
+          File.write(path, render)
+        end
       end
 
       # True when this export carries real secrets (so the caller can warn).

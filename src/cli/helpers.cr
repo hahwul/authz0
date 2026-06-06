@@ -22,6 +22,13 @@ module Authz0
         args.shift?
       end
 
+      # Count + noun with naive pluralization: "1 url" / "2 urls". Pass an
+      # explicit plural for irregular nouns.
+      def pluralize(count : Int, noun : String, plural : String? = nil) : String
+        word = count == 1 ? noun : (plural || "#{noun}s")
+        "#{count} #{word}"
+      end
+
       # Print a block of "key: value" lines, padding keys to align values.
       def print_kv(pairs : Array({String, String}))
         width = pairs.max_of? { |k, _| k.size } || 0

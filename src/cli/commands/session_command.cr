@@ -6,6 +6,7 @@ require "../../utils/errors"
 require "../../utils/logger"
 require "../../utils/runtime"
 require "../../utils/masking"
+require "../../utils/secure_file"
 require "../../utils/validator"
 
 module Authz0::CLI
@@ -153,9 +154,7 @@ module Authz0::CLI
     # Summarize the most recent archived scan (timestamp + finding counts), or
     # nil if the session has never been scanned.
     private def last_scan(session) : String?
-      dir = session.results_dir
-      return nil unless File.directory?(dir)
-      latest = Dir.glob(File.join(dir, "*.json")).sort.last?
+      latest = session.latest_result_file
       return nil if latest.nil?
       doc = JSON.parse(File.read(latest))
       s = doc["summary"]?
@@ -254,9 +253,16 @@ module Authz0::CLI
       if file == "-"
         print bundle
       else
-        File.write(file, bundle + "\n")
+        has_secrets = !redact && session.creds.any? { |c| !c.headers.empty? || !c.cookies.empty? }
+        # A bundle carrying plaintext credentials must not land world-readable,
+        # matching creds.json's chmod-600 treatment.
+        if has_secrets
+          SecureFile.write_private(file, bundle + "\n")
+        else
+          File.write(file, bundle + "\n")
+        end
         Logger.success "exported '#{session.name}' → #{file}"
-        Logger.warn "bundle contains plaintext credentials — keep it private (use --redact to mask)" if !redact && session.creds.any? { |c| !c.headers.empty? || !c.cookies.empty? }
+        Logger.warn "bundle contains plaintext credentials (written chmod 600) — keep it private, or use --redact to mask" if has_secrets
       end
     end
 

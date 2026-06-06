@@ -9,7 +9,7 @@ module Authz0
     # `box` is false, a tab-separated grid that pipes cleanly into awk/grep.
     # Vulnerable rows are tinted red when color is on.
     class TableReport
-      HEADERS = ["#", "Status", "Method", "Target", "Role", "Access", "Expected", "RLT"]
+      HEADERS = ["#", "Status", "Method", "Target", "Role", "Access", "Expected", "Verdict"]
 
       def initialize(@box : Bool = true, @color : Bool = true)
       end
@@ -78,22 +78,30 @@ module Authz0
         value ? "yes" : "no"
       end
 
+      private def pluralize(count : Int, noun : String) : String
+        "#{count} #{count == 1 ? noun : "#{noun}s"}"
+      end
+
       private def summary_line(s : Summary) : String
         parts = [
-          "#{s.targets} targets",
-          "#{s.total} probes",
-          "#{s.findings} findings",
+          pluralize(s.targets, "target"),
+          pluralize(s.total, "probe"),
+          pluralize(s.findings, "finding"),
         ]
         # Break findings into the dangerous vs benign subsets so a wall of
         # over-restrictive rows doesn't read as a breach.
         if s.findings > 0
           parts << "#{s.unauthorized} unauthorized" << "#{s.over_restrictive} over-restrictive"
         end
-        parts << "#{s.errors} errors" if s.errors > 0
-        prefix = s.clean? ? "✓" : "✗"
+        parts << pluralize(s.errors, "error") if s.errors > 0
+        # A scan where every probe errored reached nothing — not a clean pass.
+        all_errored = s.total > 0 && s.errors == s.total
+        prefix = (s.clean? && !all_errored) ? "✓" : "✗"
         line = "#{prefix} #{parts.join(", ")}"
         if @color && @box
-          if s.clean?
+          if all_errored
+            line.colorize(:red).to_s
+          elsif s.clean?
             line.colorize(:green).to_s
           elsif s.breached?
             line.colorize(:red).bold.to_s

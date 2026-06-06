@@ -30,7 +30,7 @@ module Authz0
           io << "</section>\n"
 
           io << "<table>\n<thead><tr>"
-          %w[# Status Method Target Role Access Expected RLT Reason].each { |h| io << "<th>" << h << "</th>" }
+          %w[# Status Method Target Role Access Expected Verdict Reason].each { |h| io << "<th>" << h << "</th>" }
           io << "</tr></thead>\n<tbody>\n"
           results.each { |r| row(io, r) }
           io << "</tbody>\n</table>\n"

@@ -21,6 +21,7 @@ module Authz0
         asserts : Array(Assertion)
 
       def parse(content : String) : Parsed
+        Importers.guard_document!(content, "v1 template")
         doc = YAML.parse(content)
         unless doc.as_h?
           raise ImportError.new("not a v1 template (expected a YAML mapping at the root)")

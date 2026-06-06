@@ -32,7 +32,8 @@ describe Authz0::Report do
   it "renders a plain table with a summary" do
     rendered = Authz0::Report.render(sample_results, Authz0::Report::Format::Plain, false)
     rendered.should contain("admin")
-    rendered.should contain("1 findings")
+    rendered.should contain("1 finding")
+    rendered.should_not contain("1 findings") # singular, not "1 findings"
   end
 
   it "renders valid JSON with summary and results" do

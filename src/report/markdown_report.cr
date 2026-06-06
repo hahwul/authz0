@@ -7,7 +7,7 @@ module Authz0
     # GitHub-flavored Markdown report: a summary line plus a pipe table.
     # Suitable for pasting into issues / PR comments or CI job summaries.
     class MarkdownReport
-      HEADERS = ["#", "Status", "Method", "Target", "Role", "Access", "Expected", "RLT"]
+      HEADERS = ["#", "Status", "Method", "Target", "Role", "Access", "Expected", "Verdict"]
 
       def render(results : Array(Result)) : String
         summary = Summary.new(results)

@@ -50,7 +50,7 @@ module Authz0::CLI
         exporter.write(output)
         Logger.success "exported '#{session.name}' → #{output}"
         if exporter.carries_secrets?
-          Logger.warn "this template contains plaintext credentials — do not commit it (use --redact to mask)"
+          Logger.warn "this template contains plaintext credentials (written chmod 600) — do not commit it (use --redact to mask)"
         end
       end
     end

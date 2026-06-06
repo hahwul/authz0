@@ -14,6 +14,7 @@ module Authz0
       HTTP_METHODS = %w[get post put patch delete head options]
 
       def parse(content : String, base_url : String) : Array(TargetURL)
+        Importers.guard_document!(content, "OpenAPI document")
         root = YAML.parse(content)
         root_h = root.as_h?
         raise ImportError.new("not an OpenAPI document (expected a mapping at the root)") if root_h.nil?

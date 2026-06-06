@@ -47,16 +47,24 @@ module Authz0
 
       RETRY_BACKOFF_MS = 250
 
+      # Always dropped when a redirect crosses to a different origin, on top of
+      # the per-request credential header names the scanner supplies — so an
+      # open-redirect on the target can't exfiltrate the tester's secrets.
+      SENSITIVE_HEADERS = Set{"authorization", "cookie", "proxy-authorization"}
+
       def initialize(@timeout : Int32 = 10, @proxy : String? = nil, @insecure : Bool = true,
                      @follow_redirects : Int32 = 0, @retries : Int32 = 0, @user_agent : String? = nil)
       end
 
       # Issue the request, retrying transient failures (transport errors, 429,
       # 503) up to @retries times with linear backoff, then return the result.
-      def request(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
+      # `sensitive` names the credential headers to strip on a cross-origin
+      # redirect (credentials live in arbitrary header names in authz0).
+      def request(method : String, url : String, headers : HTTP::Headers, body : String?,
+                  sensitive : Set(String) = Set(String).new) : HttpResponse
         attempt = 0
         loop do
-          response = follow(method, url, headers, body)
+          response = follow(method, url, headers, body, sensitive)
           return response if attempt >= @retries || !retryable?(response)
           attempt += 1
           sleep((RETRY_BACKOFF_MS * attempt).milliseconds)
@@ -72,19 +80,36 @@ module Authz0
 
       # Issue the request, optionally chasing up to @follow_redirects hops. The
       # returned response is the final one in the chain (or the first error).
-      private def follow(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
+      private def follow(method : String, url : String, headers : HTTP::Headers, body : String?,
+                         sensitive : Set(String) = Set(String).new) : HttpResponse
         current_url = url
         current_method = method
         current_body = body
+        # Work on a private copy: per-hop mutations (Host refresh, cross-origin
+        # credential stripping) must not leak back to the caller's headers or
+        # bleed into a later retry of the same probe (which restarts from `url`).
+        current_headers = headers.dup
+        origin = origin_of(url)
         hops = 0
         loop do
-          response = perform(current_method, current_url, headers, current_body, hops)
+          response = perform(current_method, current_url, current_headers, current_body, hops)
           return response unless response.ok?
           return response unless @follow_redirects > 0 && response.redirect? && hops < @follow_redirects
 
           loc = response.redirect_location
           return response if loc.nil? || loc.empty?
-          current_url = resolve_redirect(URI.parse(current_url), loc)
+          next_url = resolve_redirect(URI.parse(current_url), loc)
+
+          # Crossing to a different origin (scheme/host/port) → drop credentials
+          # before following, matching RFC 9110 §15.4 / browser behavior: never
+          # forward Authorization/Cookie/etc. to a host the target merely named
+          # in a Location header (open-redirect token exfiltration otherwise).
+          next_origin = origin_of(next_url)
+          if next_origin != origin
+            strip_credentials(current_headers, sensitive)
+            origin = next_origin
+          end
+          current_url = next_url
 
           # 303 → always GET; 301/302 downgrade a non-GET/HEAD method to GET
           # (matching browser behavior); 307/308 preserve method + body.
@@ -94,6 +119,29 @@ module Authz0
             current_body = nil
           end
           hops += 1
+        end
+      end
+
+      # Scheme://host:port identity of a URL (default ports normalized), for
+      # deciding whether a redirect stays same-origin.
+      private def origin_of(url : String) : String
+        uri = URI.parse(url)
+        scheme = (uri.scheme || "").downcase
+        host = (uri.host || "").downcase
+        port = uri.port || (scheme == "https" ? 443 : 80)
+        "#{scheme}://#{host}:#{port}"
+      rescue
+        url
+      end
+
+      # Remove credential-bearing headers (the built-in set plus the scanner's
+      # per-credential header names) before following a cross-origin redirect.
+      private def strip_credentials(headers : HTTP::Headers, extra : Set(String))
+        names = [] of String
+        headers.each { |name, _| names << name }
+        names.each do |name|
+          ln = name.downcase
+          headers.delete(name) if SENSITIVE_HEADERS.includes?(ln) || extra.includes?(ln)
         end
       end
 
@@ -207,7 +255,7 @@ module Authz0
             socket.close
             return HttpResponse.errored("proxy CONNECT failed: #{tunnel.status_code}")
           end
-          ssl = OpenSSL::SSL::Socket::Client.new(socket, context: insecure_context, sync_close: true, hostname: host)
+          ssl = OpenSSL::SSL::Socket::Client.new(socket, context: tunnel_tls_context, sync_close: true, hostname: host)
           io = ssl
           resource = uri.request_target
           resource = "/" if resource.empty?
@@ -295,6 +343,16 @@ module Authz0
         ctx = OpenSSL::SSL::Context::Client.new
         ctx.verify_mode = OpenSSL::SSL::VerifyMode::NONE
         ctx
+      end
+
+      # TLS context for the CONNECT-tunnel client socket. The direct path picks
+      # this via `tls_for`; the proxied path builds the socket by hand, so it
+      # must honor @insecure here too — otherwise `--secure --proxy …` would
+      # silently skip certificate verification (hostname verification comes from
+      # the `hostname:` arg when verify_mode is PEER, the default for a fresh
+      # client context).
+      private def tunnel_tls_context : OpenSSL::SSL::Context::Client
+        @insecure ? insecure_context : OpenSSL::SSL::Context::Client.new
       end
     end
   end

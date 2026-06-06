@@ -34,7 +34,7 @@ module Authz0
       def sort(results : Array(Result), field : String?) : Array(Result)
         case field
         when "severity" then results.sort_by { |r| {severity_rank(r), r.index} }
-        when "latency"  then results.sort_by { |r| -r.elapsed_ms }
+        when "latency"  then results.sort_by { |r| {-r.elapsed_ms, r.index} }
         when "status"   then results.sort_by { |r| {r.status_code, r.index} }
         else                 results
         end
