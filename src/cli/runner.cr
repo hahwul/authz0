@@ -11,6 +11,7 @@ require "./commands/cred_command"
 require "./commands/assert_command"
 require "./commands/scan_command"
 require "./commands/results_command"
+require "./commands/stats_command"
 require "./commands/import_command"
 require "./commands/export_command"
 require "./commands/doctor_command"
@@ -24,7 +25,7 @@ module Authz0
     # `✗ message` output with a sensible exit code.
     class Runner
       KNOWN_COMMANDS = %w[
-        session url cred assert scan results import export doctor config completion
+        session url cred assert scan results stats import export doctor config completion
         version help -V --version -h --help
       ]
 
@@ -52,6 +53,7 @@ module Authz0
         when "assert"     then AssertCommand.new.run(args)
         when "scan"       then ScanCommand.new.run(args)
         when "results"    then ResultsCommand.new.run(args)
+        when "stats"      then StatsCommand.new.run(args)
         when "import"     then ImportCommand.new.run(args)
         when "export"     then ExportCommand.new.run(args)
         when "doctor"     then DoctorCommand.new.run(args)
@@ -151,6 +153,7 @@ module Authz0
         {"assert <action>", "add / list / remove access-detection rules"},
         {"scan <session>", "Run the authorization scan and report findings"},
         {"results <action>", "list / show / clean archived scans"},
+        {"stats", "Cross-session overview + open findings"},
         {"import <type> ...", "Load urls from openapi/har/burp/postman/urls"},
         {"export yaml ...", "Write a v1-compatible YAML template"},
         {"doctor", "Check the install + credential file permissions"},
