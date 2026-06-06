@@ -38,6 +38,21 @@ describe Authz0::Importers::Har do
   it "raises ImportError on malformed JSON" do
     expect_raises(Authz0::ImportError) { Authz0::Importers::Har.new.parse("{bad", BASE) }
   end
+
+  it "extracts a credential from captured request headers" do
+    har = %({"log":{"entries":[{"request":{"method":"GET","url":"https://api.example.com/me","headers":[
+      {"name":"Authorization","value":"Bearer tok"},
+      {"name":"X-Api-Key","value":"k"},
+      {"name":"Cookie","value":"sid=abc; t=dark"},
+      {"name":"Accept","value":"application/json"}
+    ]}}]}})
+    creds = Authz0::Importers::Har.new.credentials(har)
+    creds.headers["Authorization"].should eq("Bearer tok")
+    creds.headers["X-Api-Key"].should eq("k")
+    creds.headers.has_key?("Accept").should be_false # non-auth header ignored
+    creds.cookies["sid"].should eq("abc")
+    creds.cookies["t"].should eq("dark")
+  end
 end
 
 describe Authz0::Importers::Burp do

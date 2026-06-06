@@ -82,6 +82,12 @@ module Authz0::CLI
             raise ValidationError.new("no -H/--header or -b/--cookie found in the curl command")
           end
         end
+        p.on("--from-har FILE", "Extract auth headers + cookies from a HAR capture") do |v|
+          creds = Importers::Har.new.credentials_from_file(v)
+          creds.headers.each { |k, val| headers[k] = val; seen << "headers" }
+          creds.cookies.each { |k, val| cookies[k] = val; seen << "cookies" }
+          raise ValidationError.new("no auth headers/cookies found in #{v}") if creds.empty?
+        end
         p.on("--auth-type T", "Informational auth label") { |v| auth_type = v; seen << "auth_type" }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, after| positional = before + after }
