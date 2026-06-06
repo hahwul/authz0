@@ -457,6 +457,17 @@ describe "usability regressions" do
     out.should contain("showing 1") # but flags that only 1 row is displayed
   end
 
+  it "warns that a repeated -r/--role keeps only the last (no silent multi-role)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/a", "--deny-role", "guest"], home)
+      r = CLISpec.run(["scan", "s", "-r", "admin", "-H", "A: 1", "-r", "guest", "-H", "B: 2", "--dry-run"], home)
+      r.stderr.should contain("multiple -r")
+      single = CLISpec.run(["scan", "s", "-r", "admin", "-H", "A: 1", "--dry-run"], home)
+      single.stderr.should_not contain("multiple -r")
+    end
+  end
+
   it "masks the proxy password in `config list` but keeps `config get` exact" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["config", "set", "proxy", "http://user:s3cretpass@127.0.0.1:8080"], home)

@@ -96,7 +96,12 @@ module Authz0::CLI
         p.on("--baseline FILE", "Compare against a prior results JSON ('latest' = session's last scan)") { |v| baseline_path = v }
         p.on("--fail-on-new", "Exit non-zero only when NEW findings appear (needs --baseline)") { fail_on_new = true }
         p.on("--only-new", "Report only findings absent from the baseline") { only_new = true }
-        p.on("-r NAME", "--role NAME", "Ad-hoc role for an inline credential") { |v| ad_hoc_role = v }
+        p.on("-r NAME", "--role NAME", "Ad-hoc role for an inline credential") do |v|
+          # -r defines a SINGLE inline role; repeating it silently kept only the
+          # last, which read like multi-role support. Warn instead of guessing.
+          Logger.warn "multiple -r/--role given; only the last ('#{v}') is used — add the others with `authz0 cred add`" unless ad_hoc_role.nil?
+          ad_hoc_role = v
+        end
         p.on("-H HEADER", "--header HEADER", "Header for the ad-hoc role (repeatable)") do |v|
           k, val = Validator.header!(v)
           ad_hoc_headers[k] = val
