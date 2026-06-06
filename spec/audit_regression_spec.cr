@@ -308,13 +308,15 @@ describe "audit regressions (CLI)" do
     end
   end
 
-  it "turns a malformed remove glob into a validation error, not a crash (#12)" do
+  it "treats remove-glob brackets literally (no BadPattern crash) (#12)" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
       CLISpec.run(["url", "add", "s", "/a[b"], home)
-      r = CLISpec.run(["url", "remove", "s", "/a[b*"], home)
-      r.status.should eq(2) # ValidationError, not 70 (internal error)
-      r.stderr.should contain("invalid glob")
+      # `[` is a literal here, `*` a wildcard → matches the /a[b path, never the
+      # old File::BadPatternError → exit 70 crash.
+      r = CLISpec.run(["url", "remove", "s", "/a[b*", "-y"], home)
+      r.status.should eq(0)
+      CLISpec.run(["url", "list", "s"], home).stdout.should_not contain("/a[b")
     end
   end
 
@@ -455,6 +457,18 @@ describe "usability regressions" do
     out.should contain("3 targets") # true scope, not "1 target"
     out.should contain("3 probes")  # not "1 probe"
     out.should contain("showing 1") # but flags that only 1 row is displayed
+  end
+
+  it "globs paths with '*' crossing '/' so --match doesn't silently skip nested urls" do
+    # The whole point: a prefix glob must reach nested paths.
+    Authz0::Glob.match?("/admin*", "/admin").should be_true
+    Authz0::Glob.match?("/admin*", "/admin/users").should be_true # File.match? would miss this
+    Authz0::Glob.match?("/admin*", "/admin/users/5").should be_true
+    Authz0::Glob.match?("*admin*", "/v1/admin/x").should be_true
+    Authz0::Glob.match?("/api/*", "/api/v1/users").should be_true
+    Authz0::Glob.match?("/admin*", "/public").should be_false
+    Authz0::Glob.match?("/a?c", "/abc").should be_true # ? = one char
+    Authz0::Glob.match?("/a[b", "/a[b").should be_true # brackets literal, no crash
   end
 
   it "drops never-auth browser headers from --from-curl but keeps auth/custom ones" do

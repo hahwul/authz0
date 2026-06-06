@@ -3,6 +3,7 @@ require "json"
 require "../helpers"
 require "../../models/target_url"
 require "../../utils/errors"
+require "../../utils/glob"
 require "../../utils/logger"
 require "../../utils/runtime"
 require "../../utils/validator"
@@ -319,12 +320,9 @@ module Authz0::CLI
       return exact unless exact.empty?
 
       if token.includes?('*') || token.includes?('?')
-        pattern = token
-        begin
-          return urls.select { |target| File.match?(pattern, target.path) }
-        rescue File::BadPatternError
-          raise ValidationError.new("invalid glob pattern: #{token}")
-        end
+        # Intuitive path glob: `*` crosses `/` (so `/admin*` also matches
+        # `/admin/users`), and any other char is literal (no BadPattern crash).
+        return urls.select { |target| Glob.match?(token, target.path) }
       end
       [] of TargetURL
     end

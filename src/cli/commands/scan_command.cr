@@ -9,6 +9,7 @@ require "../../importers/v1_template"
 require "../../store/session"
 require "../../utils/config"
 require "../../utils/errors"
+require "../../utils/glob"
 require "../../utils/logger"
 require "../../utils/suggester"
 require "../../utils/validator"
@@ -157,7 +158,7 @@ module Authz0::CLI
         raise ValidationError.new("no urls carry the tag '#{tag}'") if targets.empty?
       end
       if pat = match_filter
-        targets = targets.select { |t| File.match?(pat, t.path) }
+        targets = targets.select { |t| Glob.match?(pat, t.path) }
         raise ValidationError.new("no urls match '#{pat}'") if targets.empty?
       end
 
