@@ -158,8 +158,9 @@ module Authz0::CLI
 
     private def add(args)
       o = parse_cred_opts(args, "Usage: authz0 cred add <session> <role> [options]")
-      session = open_session(o.positional[0]?)
-      role = o.positional[1]?
+      name, rest = split_session(o.positional, needs: 1)
+      session = open_session(name)
+      role = rest[0]?
       raise ValidationError.new("missing <role> argument") if role.nil? || role.empty?
 
       session.lock do
@@ -185,8 +186,9 @@ module Authz0::CLI
 
     private def update(args)
       o = parse_cred_opts(args, "Usage: authz0 cred update <session> <role> [options]")
-      session = open_session(o.positional[0]?)
-      role = o.positional[1]?
+      name, rest = split_session(o.positional, needs: 1)
+      session = open_session(name)
+      role = rest[0]?
       raise ValidationError.new("missing <role> argument") if role.nil?
       session.lock do
         creds = session.creds
@@ -213,7 +215,8 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
       creds = session.creds
 
       if json_mode
@@ -241,8 +244,9 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
-      role = positional[1]?
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      role = rest[0]?
       raise ValidationError.new("missing <role> argument") if role.nil?
       cred = session.creds.find { |c| c.role == role }
       raise NotFoundError.new("no credential for role '#{role}' in session '#{session.name}'") if cred.nil?
@@ -268,8 +272,9 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
-      role = positional[1]?
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      role = rest[0]?
       raise ValidationError.new("missing <role> argument") if role.nil?
       session.lock do
         creds = session.creds

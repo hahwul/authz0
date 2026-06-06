@@ -26,6 +26,7 @@ module Authz0::CLI
       delete <name> [-y]                                   Delete a session
       rename <old> <new>                                   Rename a session
       clone <source> <target>                              Copy a session
+      use <name> | --clear                                 Set the default session for other commands
       backup <name> <file> [--redact]                      Save a session to one JSON file
       restore <file> [--name <name>]                       Recreate a session from a backup file
 
@@ -44,6 +45,7 @@ module Authz0::CLI
       when "delete", "rm", "remove" then delete(args)
       when "rename"                 then rename(args)
       when "clone"                  then clone(args)
+      when "use"                    then use_session(args)
       when "backup"                 then export_session(args)
       when "restore"                then import_session(args)
       when "export" # renamed → backup; kept so existing scripts don't break
@@ -62,6 +64,35 @@ module Authz0::CLI
     # One-line nudge when a deprecated action alias is used.
     private def deprecate(old : String, replacement : String)
       Logger.warn "'#{old}' was renamed to '#{replacement}' — the old name still works for now" unless Logger.quiet?
+    end
+
+    # `session use <name>` sets the default session that url/cred/assert/scan/
+    # results fall back to when you don't name one; `--clear` removes it; with
+    # no name it prints the current default.
+    private def use_session(args)
+      clear = false
+      positional = [] of String
+      OptionParser.parse(args) do |p|
+        p.banner = "Usage: authz0 session use <name> | --clear"
+        p.on("--clear", "Clear the active session") { clear = true }
+        p.on("-h", "--help", "Show help") { puts p; exit 0 }
+        p.unknown_args { |before, _| positional = before }
+      end
+      if clear
+        Store::SessionStore.clear_current
+        Logger.success "cleared the active session"
+        return
+      end
+      name = positional.first?
+      if name.nil?
+        if cur = Store::SessionStore.current
+          Logger.info "active session: #{cur}"
+        else
+          Logger.info "no active session — set one with `authz0 session use <name>`"
+        end
+        return
+      end
+      Logger.success "active session → #{Store::SessionStore.use(name)}"
     end
 
     private def set_session(args)
@@ -122,10 +153,12 @@ module Authz0::CLI
         Logger.info "no sessions yet — create one with `authz0 session new <name> --base-url <url>`"
         return
       end
+      # Mark the active session ("session use") with * so an implicit default
+      # is never a surprise.
+      active = Store::SessionStore.current
       sessions.each do |s|
-        urls = s.urls.size
-        creds = s.creds.size
-        puts "#{s.name}  (#{s.meta.base_url})  urls=#{urls} creds=#{creds}"
+        marker = s.name == active ? "* " : "  "
+        puts "#{marker}#{s.name}  (#{s.meta.base_url})  urls=#{s.urls.size} creds=#{s.creds.size}"
       end
     end
 

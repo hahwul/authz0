@@ -573,6 +573,29 @@ describe "usability regressions" do
     end
   end
 
+  it "uses the active session ('session use') when a command omits the name, explicit wins" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "shop", "--base-url", "https://x.test"], home)
+      CLISpec.run(["session", "new", "other", "--base-url", "https://y.test"], home)
+      CLISpec.run(["session", "use", "shop"], home).status.should eq(0)
+
+      # No session named → falls back to the active one (shop).
+      CLISpec.run(["url", "add", "/admin", "--allow-role", "admin"], home).status.should eq(0)
+      CLISpec.run(["url", "list"], home).stdout.should contain("/admin")
+      # An explicit name still overrides the active session.
+      CLISpec.run(["url", "add", "other", "/only-other"], home)
+      CLISpec.run(["url", "list", "other"], home).stdout.should contain("/only-other")
+      CLISpec.run(["url", "list", "shop"], home).stdout.should_not contain("/only-other")
+      # session list marks the active one.
+      CLISpec.run(["session", "list"], home).stdout.should match(/\*\s*shop/)
+      # Clearing removes the fallback → a bare command now errors helpfully.
+      CLISpec.run(["session", "use", "--clear"], home).status.should eq(0)
+      bare = CLISpec.run(["url", "list"], home)
+      bare.status.should eq(2)
+      bare.stderr.should contain("session use")
+    end
+  end
+
   it "renames session export/import to backup/restore, keeping the old names as aliases" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

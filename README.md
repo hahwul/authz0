@@ -104,6 +104,7 @@ Re-imports are idempotent: endpoints already present (same method+path+body) are
 | Command | Purpose |
 |---|---|
 | `session new/list/show/set/delete/rename/clone` | Manage test projects |
+| `session use <name>` | Set a default session so url/cred/assert/scan/results don't need it named (explicit name still wins; `--clear` to unset) |
 | `url add/list/show/update/remove` | Manage endpoints + allow/deny-role policy |
 | `cred add/list/show/update/remove` | Manage credentials (roles); values masked by default |
 | `assert add/list/remove` | Access-detection rules (success-status / fail-status / fail-regex / fail-size) |

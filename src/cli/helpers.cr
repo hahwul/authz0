@@ -11,9 +11,31 @@ module Authz0
       # name (missing positional) becomes a ValidationError pointing at usage.
       def open_session(name : String?) : Store::Session
         if name.nil? || name.empty?
-          raise ValidationError.new("missing <session> argument")
+          raise ValidationError.new(
+            "missing <session> argument",
+            "name it, or set a default with `authz0 session use <name>`"
+          )
         end
         Store::SessionStore.open(name)
+      end
+
+      # Split the session name out of a command's positionals, honoring the
+      # active session ("session use"). `needs` is how many NON-session
+      # positionals the command takes (e.g. `url add <session> <path>` → 1).
+      #
+      # If there are more positionals than the command needs, the first is an
+      # explicit session (and always wins). Otherwise, if an active session is
+      # set, it's used and every positional is a real argument. With neither,
+      # the session is nil and open_session raises a helpful error. Resolving by
+      # arity keeps `url add /path` (active) unambiguous from `url add s /path`.
+      def split_session(positionals : Array(String), needs : Int32) : {String?, Array(String)}
+        if positionals.size > needs
+          {positionals[0], positionals[1..]}
+        elsif active = Store::SessionStore.current
+          {active, positionals}
+        else
+          {nil, positionals}
+        end
       end
 
       # The first non-flag positional, or nil. Used to grab the session name /

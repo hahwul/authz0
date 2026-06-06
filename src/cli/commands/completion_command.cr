@@ -34,7 +34,7 @@ module Authz0::CLI
           return
         fi
         case "${COMP_WORDS[1]}" in
-          session) COMPREPLY=( $(compgen -W "new list show set delete rename clone backup restore" -- "$cur") ) ;;
+          session) COMPREPLY=( $(compgen -W "new list show set delete rename clone use backup restore" -- "$cur") ) ;;
           url)     COMPREPLY=( $(compgen -W "add list show update remove" -- "$cur") ) ;;
           cred)    COMPREPLY=( $(compgen -W "add list show update remove" -- "$cur") ) ;;
           assert)  COMPREPLY=( $(compgen -W "add list remove" -- "$cur") ) ;;
@@ -62,7 +62,7 @@ module Authz0::CLI
           return
         fi
         case "${words[2]}" in
-          session) compadd -- new list show set delete rename clone backup restore ;;
+          session) compadd -- new list show set delete rename clone use backup restore ;;
           url)     compadd -- add list show update remove ;;
           cred)    compadd -- add list show update remove ;;
           assert)  compadd -- add list remove ;;
@@ -83,7 +83,7 @@ module Authz0::CLI
       #   authz0 completion fish > ~/.config/fish/completions/authz0.fish
       complete -c authz0 -f
       complete -c authz0 -n __fish_use_subcommand -a "session url cred assert scan results stats import export doctor config completion version help"
-      complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone backup restore"
+      complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone use backup restore"
       complete -c authz0 -n "__fish_seen_subcommand_from url" -a "add list show update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from cred" -a "add list show update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from assert" -a "add list remove"

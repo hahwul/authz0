@@ -48,7 +48,8 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
       files = archives(session)
       if files.empty?
         Logger.info "no archived scans for '#{session.name}'"
@@ -70,14 +71,23 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      # `<file>` is optional, so arity can't tell `show <session>` from
+      # `show <file>`; fall back to the active session only when nothing was
+      # named, otherwise keep positional[0]=session, positional[1]=file.
+      if positional.empty? && (active = Store::SessionStore.current)
+        session = open_session(active)
+        file_name = nil
+      else
+        session = open_session(positional[0]?)
+        file_name = positional[1]?
+      end
       files = archives(session)
       raise NotFoundError.new("no archived scans for '#{session.name}'") if files.empty?
 
       target =
-        if name = positional[1]?
-          files.find { |f| File.basename(f, ".json") == name || File.basename(f) == name } ||
-            raise(NotFoundError.new("no archived scan '#{name}'"))
+        if fname = file_name
+          files.find { |f| File.basename(f, ".json") == fname || File.basename(f) == fname } ||
+            raise(NotFoundError.new("no archived scan '#{fname}'"))
         else
           files.first # newest
         end
@@ -104,7 +114,8 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
       files = archives(session)
       if files.empty?
         Logger.info "nothing to clean for '#{session.name}'"

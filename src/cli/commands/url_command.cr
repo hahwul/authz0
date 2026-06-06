@@ -125,8 +125,9 @@ module Authz0::CLI
 
     private def add(args)
       o = parse_url_opts(args, "Usage: authz0 url add <session> <path> [options]")
-      session = open_session(o.positional[0]?)
-      path = o.positional[1]?
+      name, rest = split_session(o.positional, needs: 1)
+      session = open_session(name)
+      path = rest[0]?
       raise ValidationError.new("missing <path> argument") if path.nil? || path.empty?
 
       target = TargetURL.new(
@@ -164,7 +165,8 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
       all_urls = session.urls
       # Remember each url's index in the FULL list before filtering — `#N` must
       # mean the same thing here as it does to remove/update/show, which always
@@ -208,8 +210,9 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
-      id = positional[1]?
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      id = rest[0]?
       raise ValidationError.new("missing <id> argument") if id.nil?
       url = session.find_url(id)
       raise NotFoundError.new("no url matching '#{id}' in session '#{session.name}'") if url.nil?
@@ -235,8 +238,9 @@ module Authz0::CLI
 
     private def update(args)
       o = parse_url_opts(args, "Usage: authz0 url update <session> <id> [options]")
-      session = open_session(o.positional[0]?)
-      id = o.positional[1]?
+      name, rest = split_session(o.positional, needs: 1)
+      session = open_session(name)
+      id = rest[0]?
       raise ValidationError.new("missing <id> argument") if id.nil?
       session.lock do
         urls = session.urls
@@ -258,7 +262,7 @@ module Authz0::CLI
         url.tags = o.tags if o.seen.includes?("tags")
         if o.seen.includes?("headers")
           o.headers.each { |k, v| url.headers[k] = v }
-          o.remove_headers.each { |name| url.headers.delete(name) }
+          o.remove_headers.each { |hk| url.headers.delete(hk) }
         end
 
         # Re-key the id when the request shape changed so it stays stable.
@@ -289,8 +293,9 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
-      token = positional[1]?
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      token = rest[0]?
       raise ValidationError.new("missing <id|pattern> argument") if token.nil?
 
       session.lock do

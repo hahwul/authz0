@@ -84,7 +84,8 @@ module Authz0::CLI
         p.unknown_args { |before, _| positional = before }
       end
 
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
 
       if generic_type || generic_value
         raise ValidationError.new("--type and --value must be given together") unless generic_type && generic_value
@@ -132,7 +133,8 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
+      name, _ = split_session(positional, needs: 0)
+      session = open_session(name)
       asserts = session.asserts
       if json_mode
         puts asserts.to_pretty_json
@@ -154,8 +156,9 @@ module Authz0::CLI
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
-      session = open_session(positional[0]?)
-      token = positional[1]?
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      token = rest[0]?
       raise ValidationError.new("missing <index|type> argument") if token.nil?
 
       stripped = token.lstrip('#')

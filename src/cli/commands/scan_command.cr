@@ -139,7 +139,8 @@ module Authz0::CLI
         # No session directory to archive into.
         save_results = false
       else
-        s = open_session(positional[0]?)
+        name, _ = split_session(positional, needs: 0)
+        s = open_session(name)
         session = s
         targets = s.urls
         raise ValidationError.new(

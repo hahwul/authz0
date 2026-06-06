@@ -25,6 +25,40 @@ module Authz0
         File.directory?(dir_for(name))
       end
 
+      # --- active session ("session use") -------------------------------
+      #
+      # An optional default session name (in <home>/current) so commands can be
+      # run without repeating the session. Session-scoped only — it lives in the
+      # store, not across machines. Reading it self-heals: a stale name (session
+      # since deleted/renamed) reads as "none".
+
+      def current_path : String
+        File.join(Config.home, "current")
+      end
+
+      def current : String?
+        return nil unless File.exists?(current_path)
+        name = File.read(current_path).strip
+        return nil if name.empty? || !exists?(name)
+        name
+      rescue
+        nil
+      end
+
+      def use(name : String) : String
+        name = Validator.session_name!(name)
+        unless exists?(name)
+          raise NotFoundError.new("no such session: #{name}", "run `authz0 session list` first")
+        end
+        Config.ensure_home!
+        File.write(current_path, name + "\n")
+        name
+      end
+
+      def clear_current
+        File.delete(current_path) if File.exists?(current_path)
+      end
+
       # Create a fresh session directory with seed files and a .gitignore.
       def create(name : String, base_url : String, description : String? = nil) : Session
         name = Validator.session_name!(name)
