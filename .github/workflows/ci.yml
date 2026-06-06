@@ -55,6 +55,19 @@ jobs:
         run: shards install
       - name: Run tests
         run: crystal spec
+  tests-mt:
+    # Prove the concurrent scanner (slots array + channel fan-out) is data-race
+    # free under real OS threads, not just cooperative fibers.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: crystal-lang/install-crystal@v1
+      - name: Install dependencies
+        run: shards install
+      - name: Run tests (multi-threaded runtime)
+        run: crystal spec -Dpreview_mt
+        env:
+          CRYSTAL_WORKERS: "4"
   build-docker:
     strategy:
       fail-fast: false

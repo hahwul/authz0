@@ -29,6 +29,11 @@ clean:
 test:
     crystal spec
 
+# Run the suite under the multi-threaded runtime (proves scanner thread-safety).
+[group('development')]
+test-mt:
+    CRYSTAL_WORKERS=4 crystal spec -Dpreview_mt
+
 # Check formatting (the CI lint gate).
 [group('development')]
 check:
