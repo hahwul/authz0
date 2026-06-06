@@ -55,6 +55,10 @@ module SpecHelper
   end
 
   def respond(method : String, path : String, role : String) : {Int32, String}
+    # Echo endpoint for concurrency-integrity checks: /ep/<n> returns its own
+    # path, so a worker writing to the wrong result slot becomes detectable.
+    return {200, path} if path.starts_with?("/ep/")
+
     case {method, path}
     when {"GET", "/me"}
       {200, "hello"}
