@@ -28,6 +28,7 @@ module Authz0::CLI
       insecure = true
       progress = true
       only_findings = false
+      severity_filter : String? = nil
       save_path : String? = nil
       save_results = true
       fail_on_findings = false
@@ -55,6 +56,11 @@ module Authz0::CLI
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
         p.on("--only-findings", "Report only X (finding) / ? rows") { only_findings = true }
+        p.on("--severity LEVEL", "Show only findings >= this severity (high|low)") do |v|
+          s = v.downcase
+          raise ValidationError.new("--severity must be 'high' or 'low': #{v}") unless ["high", "low"].includes?(s)
+          severity_filter = s
+        end
         p.on("--insecure", "Skip TLS verification (default)") { insecure = true }
         p.on("--secure", "Enforce TLS verification") { insecure = false }
         p.on("--no-progress", "Suppress live per-request progress") { progress = false }
@@ -120,19 +126,26 @@ module Authz0::CLI
       scanner = Scan::Scanner.new(options)
       results = scanner.run(targets, creds, asserts, base_url)
 
-      results = results.reject { |r| r.verdict == "O" } if only_findings
+      # Summary + archive always reflect the FULL scan; --only-findings /
+      # --severity only narrow what's *displayed*.
       summary = Report::Summary.new(results)
+
+      display = results
+      display = display.reject { |r| r.verdict == "O" } if only_findings
+      if sev = severity_filter
+        display = sev == "high" ? display.select(&.unauthorized?) : display.select(&.vulnerable?)
+      end
 
       # Report → stdout. Color only for the interactive table.
       color = format.table? && STDOUT.tty? && Logger.color_enabled?
-      puts Report.render(results, format, color)
+      puts Report.render(display, format, color)
 
       # Archive a structured copy inside the session unless told not to.
       if save_results && (s = session)
         archive_results(s, results)
       end
       if path = save_path
-        File.write(path, Report.render(results, format, false))
+        File.write(path, Report.render(display, format, false))
         Logger.success "report written to #{path}"
       end
 
