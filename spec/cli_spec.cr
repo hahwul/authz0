@@ -68,6 +68,17 @@ describe "authz0 CLI (end-to-end)" do
     end
   end
 
+  it "emits shell completions and rejects unknown shells" do
+    SpecHelper.with_temp_home do |home|
+      %w[bash zsh fish].each do |shell|
+        r = CLISpec.run(["completion", shell], home)
+        r.status.should eq(0)
+        r.stdout.should contain("authz0")
+      end
+      CLISpec.run(["completion", "powershell"], home).status.should eq(2)
+    end
+  end
+
   it "imports urls from stdin" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.com"], home)
