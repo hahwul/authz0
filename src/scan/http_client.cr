@@ -2,6 +2,7 @@ require "http/client"
 require "openssl"
 require "socket"
 require "uri"
+require "base64"
 
 module Authz0
   module Scan
@@ -186,11 +187,14 @@ module Authz0
         io : IO = socket
         host = uri.host.not_nil!
         port = uri.port || (uri.scheme == "https" ? 443 : 80)
+        # Proxy-Authorization from userinfo in the proxy URL (user:pass@host).
+        proxy_auth = proxy_authorization(proxy)
 
         if uri.scheme == "https"
           # Establish a CONNECT tunnel, then start TLS over the raw socket.
           socket << "CONNECT #{host}:#{port} HTTP/1.1\r\n"
           socket << "Host: #{host}:#{port}\r\n"
+          socket << "Proxy-Authorization: #{proxy_auth}\r\n" if proxy_auth
           socket << "\r\n"
           socket.flush
           tunnel = HTTP::Client::Response.from_io(socket, ignore_body: true)
@@ -206,12 +210,21 @@ module Authz0
           to_response(HTTP::Client::Response.from_io(io))
         else
           # Plain HTTP through a proxy uses absolute-form request targets.
+          headers["Proxy-Authorization"] = proxy_auth if proxy_auth
           absolute = uri.to_s
           write_request(socket, method, absolute, headers, body)
           to_response(HTTP::Client::Response.from_io(socket))
         end
       ensure
         socket.close if socket && !socket.closed?
+      end
+
+      # "Basic base64(user:pass)" from a proxy URL's userinfo, or nil.
+      private def proxy_authorization(proxy : URI) : String?
+        user = proxy.user
+        return nil if user.nil? || user.empty?
+        pass = proxy.password || ""
+        "Basic #{Base64.strict_encode("#{user}:#{pass}")}"
       end
 
       # Serialize an HTTP/1.1 request onto an IO. Content-Length is set from
