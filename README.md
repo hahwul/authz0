@@ -27,7 +27,7 @@ drive command-by-command.
   can read, diff, and version (minus secrets).
 - **Incremental** — add URLs, roles, and rules a few at a time; no all-or-nothing template.
 - **Imports** — OpenAPI/Swagger, HAR (ZAP/Chrome/Burp), Burp XML, Postman, plain URL lists.
-- **Rich reports** — table, plain (grep-friendly), JSON, Markdown, **SARIF** (CI/code-scanning), and self-contained **HTML**.
+- **Rich reports** — table, plain (grep-friendly), JSON, Markdown, CSV, **SARIF** (CI/code-scanning), and self-contained **HTML**.
 - **Concurrent scanner** with proxy support (route through Burp/ZAP via `--proxy`).
 - **Security-aware** — `creds.json` is `chmod 600`, secrets are masked in output, `.gitignore` is auto-created, and `doctor` audits it all.
 - **v1-compatible** — `export yaml` writes a template the original Go tool can consume.
@@ -108,13 +108,44 @@ Re-imports are idempotent: endpoints already present (same method+path+body) are
 | `cred add/list/update/remove` | Manage credentials (roles); values masked by default |
 | `assert add/list/remove` | Access-detection rules (success-status / fail-status / fail-regex / fail-size) |
 | `scan <session>` | Run the scan and report findings |
-| `import <type> <session> <file>` | Load endpoints from external sources |
+| `results list/show/clean <session>` | Browse archived scans |
+| `import <type> <session> <file>` | Load endpoints from external sources (`-` = stdin) |
 | `export yaml <session> <out>` | Write a v1-compatible YAML template (`-` for stdout) |
 | `doctor` | Sanity + credential-permission audit |
-| `config get/set/list/unset` | Global settings (proxy, concurrency, timeout, output, color) |
+| `config get/set/list/unset` | Global settings (proxy, concurrency, timeout, output, color, retries, follow_redirects, user_agent) |
 | `completion bash/zsh/fish` | Shell completion script |
 
 Global flags: `-q/--quiet`, `-v/--verbose`, `--no-color/--color`, `-y/--yes`.
+
+### Building credentials fast
+
+```bash
+# straight from a browser/Burp "Copy as cURL"
+authz0 cred add shop admin --from-curl "curl 'https://shop/' -H 'Authorization: Bearer …' -b 'sid=…'"
+# from captured traffic (HAR)
+authz0 cred add shop admin --from-har ./capture.har
+# HTTP Basic
+authz0 cred add shop ops --basic 'ops:s3cret'
+```
+
+### Scan options (highlights)
+
+```
+--anon                 also probe each target with no auth (catches public exposure)
+--severity high|low    show only findings of at least this severity
+--sort severity        order rows findings-first (also: latency, status)
+--tag T / --match GLOB scan only a subset of a large session
+-L / --max-redirects N follow redirects
+--retries N            retry transient failures (timeout/429/503)
+--extra-header "K: V"  header sent with every probe/role
+--dry-run              preview the probe matrix without sending requests
+-o FORMAT / --save F   table|plain|json|markdown|sarif|html|csv (file format inferred from extension)
+--fail-on-findings     non-zero exit for CI
+```
+
+A finding is split by severity: **unauthorized** (a role reached a resource it
+shouldn't — the real breach, SARIF `error`) vs **over-restrictive** (a role was
+denied access it should have — a functional bug, SARIF `warning`).
 
 ### How a verdict is decided
 
