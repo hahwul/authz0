@@ -193,6 +193,22 @@ describe "audit regressions (wave 3)" do
   end
 end
 
+# ---- continuation rounds ------------------------------------------------
+describe "audit regressions (rounds)" do
+  it "lengthens a short id only on a genuine collision, keeping it stable otherwise (#53)" do
+    id = Authz0::ShortId.for("GET", "/a", "")
+    id.size.should eq(Authz0::ShortId::LENGTH)
+    # No collision → same 8-char id.
+    Authz0::ShortId.unique("GET", "/a", "", taken: Set(String).new).should eq(id)
+    # Collision with a different endpoint already holding that id → longer id,
+    # never a silent reuse of the taken one.
+    longer = Authz0::ShortId.unique("GET", "/a", "", taken: Set{id})
+    longer.size.should be > Authz0::ShortId::LENGTH
+    longer.should_not eq(id)
+    longer.starts_with?(id).should be_true # still a prefix of the full hash
+  end
+end
+
 # ---- CLI-level regressions (drive the real binary) ----------------------
 describe "audit regressions (CLI)" do
   it "exits non-zero when every probe errors (no false 'clean' pass)" do

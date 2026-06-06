@@ -96,24 +96,37 @@ module Authz0
       end
     end
 
-    # Merge imported targets into a session, skipping any whose id already
-    # exists (same method+path+body). Returns {added, skipped}.
+    # Merge imported targets into a session, skipping genuine duplicates (same
+    # method+path+body). Dedup is on the full request shape, NOT the truncated
+    # id, so two distinct endpoints that happen to share an 8-char hash prefix
+    # are both kept (the second gets a longer unique id) instead of one being
+    # silently dropped. Returns {added, skipped}.
     def merge(session : Store::Session, targets : Array(TargetURL)) : {Int32, Int32}
       existing = session.urls
+      shapes = existing.map { |u| shape_key(u) }.to_set
       ids = existing.map(&.id).to_set
       added = 0
       skipped = 0
       targets.each do |t|
-        if ids.includes?(t.id)
+        if shapes.includes?(shape_key(t))
           skipped += 1
         else
+          t.id = ShortId.unique(t.method, t.path, t.body || "", taken: ids)
           existing << t
+          shapes << shape_key(t)
           ids << t.id
           added += 1
         end
       end
       session.save_urls(existing)
       {added, skipped}
+    end
+
+    # The full request identity (method + path + body) — the same fields, in the
+    # same order and separator, that ShortId hashes, so dedup is consistent with
+    # id derivation.
+    private def shape_key(t : TargetURL) : String
+      "#{t.method} #{t.path} #{t.body}"
     end
 
     # Classify a postData/body mime type into the TargetURL content_type tag.
