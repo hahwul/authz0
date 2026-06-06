@@ -209,10 +209,12 @@ module Authz0
           write_request(io, method, resource, headers, body)
           to_response(HTTP::Client::Response.from_io(io))
         else
-          # Plain HTTP through a proxy uses absolute-form request targets.
-          headers["Proxy-Authorization"] = proxy_auth if proxy_auth
+          # Plain HTTP through a proxy uses absolute-form request targets. The
+          # Proxy-Authorization is passed to write_request (not merged into the
+          # caller's headers) so it isn't carried into later redirect hops or
+          # mutated state, and stays a request-to-the-proxy concern.
           absolute = uri.to_s
-          write_request(socket, method, absolute, headers, body)
+          write_request(socket, method, absolute, headers, body, proxy_auth)
           to_response(HTTP::Client::Response.from_io(socket))
         end
       ensure
@@ -229,8 +231,11 @@ module Authz0
 
       # Serialize an HTTP/1.1 request onto an IO. Content-Length is set from
       # the body so the server knows when the request ends.
-      private def write_request(io : IO, method : String, resource : String, headers : HTTP::Headers, body : String?)
+      private def write_request(io : IO, method : String, resource : String, headers : HTTP::Headers, body : String?, proxy_auth : String? = nil)
         io << method << " " << resource << " HTTP/1.1\r\n"
+        # Proxy-Authorization (HTTP absolute-form only) — a hop-by-hop header
+        # for the proxy; a compliant proxy consumes it and doesn't forward it.
+        io << "Proxy-Authorization: " << proxy_auth << "\r\n" if proxy_auth
         has_connection = false
         has_content_length = false
         headers.each do |name, values|

@@ -265,7 +265,9 @@ module Authz0::CLI
       positional = [] of String
       OptionParser.parse(args) do |p|
         p.banner = "Usage: authz0 session import <file> [--name <name>]"
-        p.on("--name NAME", "Import under this name (instead of the bundle's)") { |v| name_override = v }
+        # Validate at parse time so `--name ""` fails fast with a clear message
+        # (not an ambiguous "session name is empty" later).
+        p.on("--name NAME", "Import under this name (instead of the bundle's)") { |v| name_override = Validator.session_name!(v) }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, _| positional = before }
       end
@@ -280,12 +282,20 @@ module Authz0::CLI
       description = doc["description"]?.try(&.as_s?)
 
       session = Store::SessionStore.create(name, base_url, description)
-      session.save_urls(Array(TargetURL).from_json((doc["urls"]? || JSON.parse("[]")).to_json))
-      session.save_creds(Array(Credential).from_json((doc["creds"]? || JSON.parse("[]")).to_json))
-      session.save_asserts(Array(Assertion).from_json((doc["asserts"]? || JSON.parse("[]")).to_json))
+      session.save_urls(Array(TargetURL).from_json(bundle_array(doc, "urls")))
+      session.save_creds(Array(Credential).from_json(bundle_array(doc, "creds")))
+      session.save_asserts(Array(Assertion).from_json(bundle_array(doc, "asserts")))
       Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
     rescue ex : JSON::ParseException
       raise ValidationError.new("invalid session bundle JSON: #{ex.message}")
+    end
+
+    # Re-serialize a bundle array field as JSON, tolerating a missing or null
+    # value (a JSON `null` becomes a truthy JSON::Any, so the bare `?` isn't
+    # enough — use as_a? to fall back to an empty array).
+    private def bundle_array(doc : JSON::Any, key : String) : String
+      arr = doc[key]?.try(&.as_a?)
+      arr ? arr.to_json : "[]"
     end
   end
 end
