@@ -53,6 +53,7 @@ module Authz0::CLI
       # "-" reads the document from stdin so imports can be piped
       # (e.g. `curl … | authz0 import openapi sess -`).
       content = file == "-" ? STDIN.gets_to_end : Importers.read_file(file)
+      Importers.ensure_utf8!(content, file == "-" ? "stdin" : file)
       if type == "auto"
         type = detect_type(content)
         Logger.info "detected format: #{type}"

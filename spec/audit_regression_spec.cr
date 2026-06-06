@@ -238,6 +238,14 @@ describe "audit regressions (rounds)" do
     line.should_not contain("s3cret")               # userinfo removed
     line.should_not contain("user:")
   end
+
+  it "rejects non-UTF-8 import input with a clean error instead of crashing" do
+    binary = String.new(Bytes[0xff, 0xfe, 0x00, 0x01])
+    expect_raises(Authz0::ImportError, /UTF-8/) do
+      Authz0::Importers.ensure_utf8!(binary, "x.bin")
+    end
+    Authz0::Importers.ensure_utf8!("openapi: 3.0.0") # valid text passes
+  end
 end
 
 # ---- CLI-level regressions (drive the real binary) ----------------------

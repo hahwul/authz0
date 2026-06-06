@@ -284,6 +284,7 @@ module Authz0::CLI
       file = positional[0]?
       raise ValidationError.new("missing <file> argument") if file.nil?
       content = file == "-" ? STDIN.gets_to_end : File.read(file)
+      raise ValidationError.new("session bundle is not valid UTF-8 text") unless content.valid_encoding?
 
       doc = JSON.parse(content)
       name = name_override || doc["name"]?.try(&.as_s?)

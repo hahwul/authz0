@@ -16,7 +16,18 @@ module Authz0
       if File.directory?(path)
         raise ImportError.new("expected a file, got a directory: #{path}")
       end
-      File.read(path)
+      content = File.read(path)
+      ensure_utf8!(content, path)
+      content
+    end
+
+    # Reject non-text (invalid UTF-8) import input up front with a clean error,
+    # rather than letting a downstream regex/parser raise an uncaught encoding
+    # error (`import auto <binary file>` otherwise crashed with exit 70).
+    def ensure_utf8!(content : String, source : String = "input")
+      unless content.valid_encoding?
+        raise ImportError.new("#{source} is not valid UTF-8 text (binary file?)")
+      end
     end
 
     # Generous ceiling on an imported document — bounds memory and rejects
