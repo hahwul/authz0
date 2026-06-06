@@ -47,21 +47,25 @@ module Authz0::CLI
       end
       session = open_session(positional[1]?)
       file = positional[2]?
-      raise ValidationError.new("missing <file> argument") if file.nil?
+      raise ValidationError.new("missing <file> argument", "use '-' to read from stdin") if file.nil?
 
+      # "-" reads the document from stdin so imports can be piped
+      # (e.g. `curl … | authz0 import openapi sess -`).
+      content = file == "-" ? STDIN.gets_to_end : Importers.read_file(file)
       base = session.meta.base_url
       targets =
         case type
-        when "urls"    then Importers::Urls.new.from_file(file, base)
-        when "har"     then Importers::Har.new.from_file(file, base)
-        when "burp"    then Importers::Burp.new.from_file(file, base)
-        when "openapi" then Importers::OpenAPI.new.from_file(file, base)
-        when "postman" then Importers::Postman.new.from_file(file, base)
+        when "urls"    then Importers::Urls.new.parse(content, base)
+        when "har"     then Importers::Har.new.parse(content, base)
+        when "burp"    then Importers::Burp.new.parse(content, base)
+        when "openapi" then Importers::OpenAPI.new.parse(content, base)
+        when "postman" then Importers::Postman.new.parse(content, base)
         else                raise ValidationError.new("unknown import type: #{type}")
         end
 
+      source = file == "-" ? "stdin" : file
       if targets.empty?
-        Logger.warn "no endpoints found in #{file}"
+        Logger.warn "no endpoints found in #{source}"
         return
       end
       added, skipped = Importers.merge(session, targets)
