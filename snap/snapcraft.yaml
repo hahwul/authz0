@@ -29,7 +29,9 @@ parts:
     override-build: |
       curl -fsSL https://crystal-lang.org/install.sh | bash
       shards install --production
-      shards build --release --no-debug --production
+      # -Dpreview_mt: multi-threaded runtime so per-probe TLS handshakes
+      # parallelize across cores (tune via CRYSTAL_WORKERS at run time).
+      shards build --release --no-debug --production -Dpreview_mt
       cp ./bin/authz0 $CRAFT_PART_INSTALL/
     build-packages:
       - git

@@ -28,7 +28,7 @@ drive command-by-command.
 - **Incremental** — add URLs, roles, and rules a few at a time; no all-or-nothing template.
 - **Imports** — OpenAPI/Swagger, HAR (ZAP/Chrome/Burp), Burp XML, Postman, plain URL lists.
 - **Rich reports** — table, plain (grep-friendly), JSON, Markdown, CSV, **SARIF** (CI/code-scanning), and self-contained **HTML**.
-- **Concurrent scanner** with proxy support (route through Burp/ZAP via `--proxy`).
+- **Concurrent, multi-threaded scanner** with proxy support (route through Burp/ZAP via `--proxy`). Released binaries use Crystal's `preview_mt` runtime so per-probe TLS handshakes parallelize across cores — tune OS threads with `CRYSTAL_WORKERS` (default 4) and in-flight requests with `--concurrency`.
 - **Security-aware** — `creds.json` is `chmod 600`, secrets are masked in output, `.gitignore` is auto-created, and `doctor` audits it all.
 - **v1-compatible** — `export yaml` writes a template the original Go tool can consume.
 
@@ -53,7 +53,7 @@ docker run --rm ghcr.io/hahwul/authz0:latest --help
 # From source (requires Crystal >= 1.19)
 git clone https://github.com/hahwul/authz0
 cd authz0
-shards build --release        # zero runtime deps; binary at ./bin/authz0
+shards build --release -Dpreview_mt   # multi-threaded runtime; binary at ./bin/authz0
 ./bin/authz0 --help
 ```
 
@@ -230,7 +230,8 @@ header values so tokens never touch your shell history.
 
 ```bash
 crystal spec                       # run the suite (unit + live-server integration)
-crystal build src/main.cr -o authz0
+crystal spec -Dpreview_mt          # same suite under the multi-threaded runtime
+crystal build src/main.cr -o authz0 -Dpreview_mt
 crystal tool format src spec
 ```
 

@@ -18,7 +18,10 @@ COPY shard.yml shard.lock ./
 RUN shards install --production
 
 COPY . .
-RUN crystal build src/main.cr -o /authz0/authz0 --release --no-debug --static && \
+# -Dpreview_mt enables Crystal's multi-threaded runtime so per-probe TLS
+# handshakes (CPU-bound) parallelize across cores instead of serializing on a
+# single fiber thread; tune the thread count at run time via CRYSTAL_WORKERS.
+RUN crystal build src/main.cr -o /authz0/authz0 --release --no-debug --static -Dpreview_mt && \
     strip /authz0/authz0
 
 ##= RUNNER =##

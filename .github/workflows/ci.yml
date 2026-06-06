@@ -31,7 +31,9 @@ jobs:
       - name: Install dependencies
         run: shards install
       - name: Build
-        run: shards build
+        # -Dpreview_mt mirrors the release/Docker builds (multi-threaded
+        # runtime) so CI compiles exactly what ships.
+        run: shards build -Dpreview_mt
   lint:
     runs-on: ubuntu-latest
     steps:

@@ -47,11 +47,15 @@ jobs:
           # Build inside the Alpine/musl Crystal image for a fully static
           # binary. authz0 links OpenSSL (HTTPS scanning) + libyaml, so the
           # *-static archives are added before `crystal build --static`.
+          # `-Dpreview_mt` enables Crystal's multi-threaded runtime; without it
+          # every scan fiber runs on one OS thread, and the per-probe TLS
+          # handshake (CPU-bound) serializes — so a large HTTPS scan is stuck on
+          # one core. With it, handshakes parallelize (tune via CRYSTAL_WORKERS).
           docker run --rm -v $(pwd):/authz0 -w /authz0 --entrypoint="" crystallang/crystal:1.20.0-alpine sh -c "
             apk add --no-cache git yaml-dev yaml-static openssl-dev openssl-libs-static zlib-dev zlib-static pcre2-dev &&
             shards install --production &&
             mkdir -p build &&
-            crystal build src/main.cr -o build/authz0-${GITHUB_REF_SLUG}-linux-${ARCH} --release --no-debug --static
+            crystal build src/main.cr -o build/authz0-${GITHUB_REF_SLUG}-linux-${ARCH} --release --no-debug --static -Dpreview_mt
           "
       - if: matrix.platform == 'macos'
         name: Build binary (macOS)
@@ -63,9 +67,12 @@ jobs:
           brew install openssl@3
           export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           BIN="build/authz0-${GITHUB_REF_SLUG}-osx-${ARCH}"
+          # -Dpreview_mt: multi-threaded runtime so per-probe TLS handshakes
+          # parallelize across cores instead of serializing on one (see Linux).
           crystal build src/main.cr \
             -o "$BIN" \
-            --no-debug --release
+            --no-debug --release \
+            -Dpreview_mt
           echo "== otool -L $BIN ==" && otool -L "$BIN"
           # Guard 1: never ship a macOS binary linked against EOL openssl@1.1.
           if otool -L "$BIN" | grep -q 'openssl@1.1'; then
