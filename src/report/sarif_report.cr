@@ -67,7 +67,14 @@ module Authz0
       private def sarif_result(json : JSON::Builder, r : Result)
         json.object do
           json.field "ruleId", RULE_ID
-          json.field "level", r.verdict == "X" ? "error" : "note"
+          # error = unauthorized access (real breach), warning = over-restrictive
+          # (functional), note = unevaluable (request error / no policy).
+          level = case r.severity
+                  in Result::Severity::High then "error"
+                  in Result::Severity::Low  then "warning"
+                  in Result::Severity::None then "note"
+                  end
+          json.field "level", level
           json.field "message" do
             json.object do
               json.field "text", "#{r.method} #{r.url} as '#{r.display_role}': #{r.reason}"
@@ -88,6 +95,7 @@ module Authz0
           end
           json.field "properties" do
             json.object do
+              json.field "severity", r.severity.label
               json.field "role", r.display_role
               json.field "method", r.method
               json.field "statusCode", r.status_code

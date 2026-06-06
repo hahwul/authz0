@@ -32,6 +32,10 @@ module Authz0
     struct Summary
       getter total : Int32
       getter findings : Int32
+      # The dangerous subset of findings (role reached a resource it shouldn't).
+      getter unauthorized : Int32
+      # The benign subset (role denied access it should have).
+      getter over_restrictive : Int32
       getter errors : Int32
       getter expected : Int32
       getter targets : Int32
@@ -39,6 +43,8 @@ module Authz0
       def initialize(results : Array(Result))
         @total = results.size
         @findings = results.count(&.vulnerable?)
+        @unauthorized = results.count(&.unauthorized?)
+        @over_restrictive = results.count(&.over_restrictive?)
         @errors = results.count { |r| !r.error.nil? }
         @expected = results.count { |r| r.verdict == "O" }
         @targets = results.map(&.index).uniq!.size
@@ -46,6 +52,11 @@ module Authz0
 
       def clean? : Bool
         @findings == 0
+      end
+
+      # True when at least one genuine unauthorized-access finding exists.
+      def breached? : Bool
+        @unauthorized > 0
       end
     end
 

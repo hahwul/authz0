@@ -28,7 +28,13 @@ module Authz0
         table = Table.new(HEADERS)
         table.align([:right, :right, :left, :left, :left, :center, :center, :center])
         results.each do |r|
-          color = r.vulnerable? ? Colorize::ColorANSI::Red : nil
+          # Red marks a genuine unauthorized-access finding; yellow marks the
+          # benign over-restrictive case so the eye goes to real breaches first.
+          color = case r.severity
+                  in Result::Severity::High then Colorize::ColorANSI::Red
+                  in Result::Severity::Low  then Colorize::ColorANSI::Yellow
+                  in Result::Severity::None then nil
+                  end
           table.add(row_for(r), color)
         end
         String.build do |io|
@@ -78,11 +84,23 @@ module Authz0
           "#{s.total} probes",
           "#{s.findings} findings",
         ]
+        # Break findings into the dangerous vs benign subsets so a wall of
+        # over-restrictive rows doesn't read as a breach.
+        if s.findings > 0
+          parts << "#{s.unauthorized} unauthorized" << "#{s.over_restrictive} over-restrictive"
+        end
         parts << "#{s.errors} errors" if s.errors > 0
         prefix = s.clean? ? "✓" : "✗"
         line = "#{prefix} #{parts.join(", ")}"
         if @color && @box
-          (s.clean? ? line.colorize(:green) : line.colorize(:red).bold).to_s
+          if s.clean?
+            line.colorize(:green).to_s
+          elsif s.breached?
+            line.colorize(:red).bold.to_s
+          else
+            # Findings exist, but none are actual unauthorized access.
+            line.colorize(:yellow).to_s
+          end
         else
           line
         end

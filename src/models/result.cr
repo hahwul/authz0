@@ -11,6 +11,25 @@ module Authz0
   class Result
     include JSON::Serializable
 
+    # How serious a finding is. The two `X` cases are very different:
+    #   High — unauthorized access: a role reached a resource it should not
+    #          (broken access control / privilege escalation). The real finding.
+    #   Low  — over-restrictive: a role was denied access policy says it should
+    #          have (a functional bug, not a security hole).
+    enum Severity
+      None
+      High
+      Low
+
+      def label : String
+        case self
+        in None then "info"
+        in High then "high"
+        in Low  then "low"
+        end
+      end
+    end
+
     property index : Int32
     property url : String
     property method : String
@@ -37,6 +56,22 @@ module Authz0
 
     def vulnerable? : Bool
       @verdict == "X"
+    end
+
+    # The dangerous finding: a role accessed something it wasn't expected to.
+    def unauthorized? : Bool
+      vulnerable? && !@expected_access && @accessible
+    end
+
+    # The benign finding: a role was blocked from something it should reach.
+    def over_restrictive? : Bool
+      vulnerable? && @expected_access && !@accessible
+    end
+
+    def severity : Severity
+      return Severity::High if unauthorized?
+      return Severity::Low if over_restrictive?
+      Severity::None
     end
 
     def role_in_allow? : Bool

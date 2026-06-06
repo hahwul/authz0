@@ -137,7 +137,12 @@ module Authz0::CLI
       end
 
       if summary.findings > 0
-        Logger.warn "#{summary.findings} finding#{summary.findings == 1 ? "" : "s"} — review the X rows above"
+        if summary.unauthorized > 0
+          extra = summary.over_restrictive > 0 ? " (+#{summary.over_restrictive} over-restrictive)" : ""
+          Logger.error "#{summary.unauthorized} unauthorized-access finding#{summary.unauthorized == 1 ? "" : "s"}#{extra} — review the red rows"
+        else
+          Logger.warn "#{summary.over_restrictive} over-restrictive finding#{summary.over_restrictive == 1 ? "" : "s"} (no unauthorized access) — likely a broken/over-tight policy"
+        end
         exit 1 if fail_on_findings
       else
         Logger.success "no authorization findings"

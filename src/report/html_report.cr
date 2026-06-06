@@ -24,7 +24,8 @@ module Authz0
           io << "<section class=\"cards\">\n"
           card(io, "targets", summary.targets.to_s, "n")
           card(io, "probes", summary.total.to_s, "n")
-          card(io, "findings", summary.findings.to_s, summary.findings > 0 ? "bad" : "good")
+          card(io, "unauthorized", summary.unauthorized.to_s, summary.unauthorized > 0 ? "bad" : "good")
+          card(io, "over-restrictive", summary.over_restrictive.to_s, summary.over_restrictive > 0 ? "warn" : "n")
           card(io, "errors", summary.errors.to_s, summary.errors > 0 ? "warn" : "n")
           io << "</section>\n"
 
@@ -44,7 +45,11 @@ module Authz0
       end
 
       private def row(io, r : Result)
-        cls = r.vulnerable? ? " class=\"finding\"" : (r.verdict == "?" ? " class=\"unknown\"" : "")
+        cls = case r.severity
+              in Result::Severity::High then " class=\"finding\""
+              in Result::Severity::Low  then " class=\"over\""
+              in Result::Severity::None then (r.verdict == "?" ? " class=\"unknown\"" : "")
+              end
         status = r.error ? "ERR" : r.status_code.to_s
         target = r.alias && !r.alias.try(&.empty?) ? r.alias.to_s : r.url
         io << "<tr" << cls << ">"
@@ -80,8 +85,9 @@ module Authz0
         table{width:calc(100% - 56px);margin:8px 28px 28px;border-collapse:collapse;font-size:13px}
         th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
         th{color:var(--mut);text-transform:uppercase;font-size:11px;letter-spacing:.04em}
-        tr.finding{background:rgba(248,81,73,.10)}tr.finding td:last-child{color:var(--bad)}
-        tr.unknown{background:rgba(210,153,34,.08)}
+        tr.finding{background:rgba(248,81,73,.12)}tr.finding td:last-child{color:var(--bad)}
+        tr.over{background:rgba(210,153,34,.10)}tr.over td:last-child{color:var(--warn)}
+        tr.unknown{background:rgba(139,148,158,.10)}
         td:nth-child(4){max-width:420px;word-break:break-all}
         footer{padding:18px 28px;color:var(--mut);border-top:1px solid var(--line)}
         </style>

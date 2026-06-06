@@ -15,7 +15,8 @@ module Authz0
           io << "# authz0 scan report\n\n"
           io << "- **targets:** #{summary.targets}\n"
           io << "- **probes:** #{summary.total}\n"
-          io << "- **findings:** #{summary.findings}\n"
+          io << "- **findings:** #{summary.findings} "
+          io << "(#{summary.unauthorized} unauthorized, #{summary.over_restrictive} over-restrictive)\n"
           io << "- **errors:** #{summary.errors}\n\n"
 
           if results.empty?
@@ -27,15 +28,18 @@ module Authz0
           results.each { |r| table.add(row_for(r)) }
           io << table.render(Table::Style::Markdown) << "\n"
 
-          findings = results.select(&.vulnerable?)
+          # Most dangerous first: unauthorized-access findings before the
+          # benign over-restrictive ones.
+          findings = results.select(&.vulnerable?).sort_by { |r| r.unauthorized? ? 0 : 1 }
           unless findings.empty?
             io << "\n## Findings\n\n"
             findings.each do |r|
+              marker = r.unauthorized? ? "**[unauthorized]**" : "[over-restrictive]"
               # Replace backticks so a URL containing one can't break out of the
               # inline-code span; escape the trailing prose so a crafted role or
               # reason can't inject Markdown structure.
               code = "#{r.method} #{r.url}".gsub('`', "'")
-              io << "- `#{code}` as **#{md_escape(r.display_role)}** — #{md_escape(r.reason)}\n"
+              io << "- #{marker} `#{code}` as **#{md_escape(r.display_role)}** — #{md_escape(r.reason)}\n"
             end
           end
         end
