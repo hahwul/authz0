@@ -81,9 +81,19 @@ module Authz0::CLI
         end
         # Touch each collection so corrupt JSON surfaces here, not mid-scan.
         begin
-          s.urls
-          s.creds
+          urls = s.urls
+          creds = s.creds
           s.asserts
+
+          if urls.empty?
+            report(Level::Warn, "#{s.name}: no urls — add some or `authz0 import ...`")
+          else
+            templated = urls.count(&.templated?)
+            report(Level::Warn, "#{s.name}: #{templated} url(s) have unfilled {templates}") if templated > 0
+            if creds.empty?
+              report(Level::Warn, "#{s.name}: no credentials — scans run anonymously only")
+            end
+          end
         rescue ex
           report(Level::Error, "#{s.name}: #{ex.message}")
         end
