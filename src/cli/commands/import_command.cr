@@ -22,6 +22,7 @@ module Authz0::CLI
     Usage: authz0 import <type> <session> <file>
 
     Types:
+      auto       Sniff the format from the file content
       openapi    OpenAPI / Swagger (JSON or YAML)
       har        HAR 1.2 archive (ZAP / Chrome / Burp)
       burp       Burp Suite "Save items" XML
@@ -42,8 +43,8 @@ module Authz0::CLI
         puts USAGE
         return
       end
-      unless TYPES.includes?(type)
-        raise ValidationError.new("unknown import type: #{type}", "one of: #{TYPES.join(", ")}")
+      unless TYPES.includes?(type) || type == "auto"
+        raise ValidationError.new("unknown import type: #{type}", "one of: auto, #{TYPES.join(", ")}")
       end
       session = open_session(positional[1]?)
       file = positional[2]?
@@ -52,6 +53,10 @@ module Authz0::CLI
       # "-" reads the document from stdin so imports can be piped
       # (e.g. `curl … | authz0 import openapi sess -`).
       content = file == "-" ? STDIN.gets_to_end : Importers.read_file(file)
+      if type == "auto"
+        type = detect_type(content)
+        Logger.info "detected format: #{type}"
+      end
       base = session.meta.base_url
       targets =
         case type
@@ -77,6 +82,28 @@ module Authz0::CLI
       if templated > 0
         Logger.warn "#{templated} url#{templated == 1 ? "" : "s"} contain path templates ({...}) — edit them with `authz0 url update` before scanning"
       end
+    end
+
+    # Sniff the import format from the document. XML → burp; JSON keyed by
+    # openapi/swagger/item/log → the matching type; YAML with an openapi/swagger
+    # key → openapi; otherwise a plain url list.
+    private def detect_type(content : String) : String
+      trimmed = content.lstrip
+      return "burp" if trimmed.starts_with?("<")
+
+      if trimmed.starts_with?('{')
+        begin
+          doc = JSON.parse(content)
+          return "openapi" if doc["openapi"]? || doc["swagger"]?
+          return "postman" if doc["item"]?
+          return "har" if doc["log"]?
+        rescue
+          # fall through
+        end
+      end
+
+      return "openapi" if content.matches?(/^\s*(openapi|swagger)\s*:/m)
+      "urls"
     end
   end
 end
