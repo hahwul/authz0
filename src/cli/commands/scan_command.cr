@@ -197,8 +197,15 @@ module Authz0::CLI
 
     private def archive_results(session, results)
       FileUtils.mkdir_p(session.results_dir)
-      stamp = Time.utc.to_s("%Y%m%dT%H%M%SZ")
-      path = File.join(session.results_dir, "#{stamp}.json")
+      # Millisecond precision + a collision guard so back-to-back scans don't
+      # overwrite each other's archive (second precision used to drop one).
+      base = Time.utc.to_s("%Y%m%dT%H%M%S%3NZ")
+      path = File.join(session.results_dir, "#{base}.json")
+      n = 1
+      while File.exists?(path)
+        path = File.join(session.results_dir, "#{base}-#{n}.json")
+        n += 1
+      end
       File.write(path, Report.render(results, Report::Format::Json, false))
       Logger.debug "results archived to #{path}"
     end

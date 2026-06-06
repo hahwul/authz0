@@ -6,7 +6,7 @@ module Authz0::CLI
   # Static command/subcommand completion (no dynamic session-name lookup, to
   # keep it dependency-free and fast).
   class CompletionCommand
-    COMMANDS = "session url cred assert scan import export doctor config completion version help"
+    COMMANDS = "session url cred assert scan results import export doctor config completion version help"
 
     def run(args : Array(String))
       shell = args.shift?
@@ -80,7 +80,7 @@ module Authz0::CLI
       # authz0 fish completion — save to ~/.config/fish/completions/authz0.fish:
       #   authz0 completion fish > ~/.config/fish/completions/authz0.fish
       complete -c authz0 -f
-      complete -c authz0 -n __fish_use_subcommand -a "session url cred assert scan import export doctor config completion version help"
+      complete -c authz0 -n __fish_use_subcommand -a "session url cred assert scan results import export doctor config completion version help"
       complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone"
       complete -c authz0 -n "__fish_seen_subcommand_from url" -a "add list show update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from cred" -a "add list update remove"
