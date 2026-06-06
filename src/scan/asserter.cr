@@ -15,7 +15,27 @@ module Authz0
     module Asserter
       extend self
 
-      def accessible?(response : HttpResponse, asserts : Array(Assertion)) : Bool
+      # Precompile fail-regex patterns once (call before a scan) so the hot path
+      # doesn't rebuild the same Regex for every response. Invalid patterns are
+      # omitted — the matcher falls back to a substring test for those.
+      def compile_regexes(asserts : Array(Assertion)) : Hash(String, Regex)
+        cache = {} of String => Regex
+        asserts.each do |a|
+          next unless a.type == "fail-regex"
+          next if cache.has_key?(a.value)
+          begin
+            cache[a.value] = Regex.new(a.value)
+          rescue
+            # leave uncached → substring fallback in body_matches?
+          end
+        end
+        cache
+      end
+
+      # `regex_cache` (from #compile_regexes) lets the scanner avoid recompiling
+      # fail-regex patterns per response; nil keeps the standalone behavior.
+      def accessible?(response : HttpResponse, asserts : Array(Assertion),
+                      regex_cache : Hash(String, Regex)? = nil) : Bool
         # A request that never completed can't have accessed anything.
         return false unless response.ok?
 
@@ -30,7 +50,7 @@ module Authz0
           when "fail-status"
             return false if status_list_matches?(code, a.value)
           when "fail-regex"
-            return false if body_matches?(response.body, a.value)
+            return false if body_matches?(response.body, a.value, regex_cache)
           when "fail-size"
             if target = a.value.strip.to_i64?
               return false if (response.size - target).abs <= margin
@@ -97,10 +117,14 @@ module Authz0
       end
 
       # Match the response body against the assert value as a regex, falling
-      # back to a plain substring test if the value isn't a valid pattern.
-      private def body_matches?(body : String, pattern : String) : Bool
-        re = Regex.new(pattern)
-        body.matches?(re)
+      # back to a plain substring test if the value isn't a valid pattern. Uses
+      # the precompiled regex from `cache` when available to avoid recompiling
+      # the same pattern for every response.
+      private def body_matches?(body : String, pattern : String, cache : Hash(String, Regex)? = nil) : Bool
+        if cache && (re = cache[pattern]?)
+          return body.matches?(re)
+        end
+        body.matches?(Regex.new(pattern))
       rescue
         body.includes?(pattern)
       end

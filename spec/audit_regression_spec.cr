@@ -246,6 +246,29 @@ describe "audit regressions (rounds)" do
     end
     Authz0::Importers.ensure_utf8!("openapi: 3.0.0") # valid text passes
   end
+
+  it "precompiles fail-regex patterns and still falls back to substring for invalid ones (perf)" do
+    asserts = [
+      Authz0::Assertion.new("fail-regex", "Denied"),     # valid
+      Authz0::Assertion.new("fail-regex", "[unclosed("), # invalid regex
+    ]
+    cache = Authz0::Scan::Asserter.compile_regexes(asserts)
+    cache.has_key?("Denied").should be_true      # valid → precompiled
+    cache.has_key?("[unclosed(").should be_false # invalid → not cached
+
+    # Cached path: a body matching the valid regex is judged NOT accessible.
+    hit = Authz0::Scan::HttpResponse.new(200, "Access Denied", 13_i64)
+    Authz0::Scan::Asserter.accessible?(hit, asserts, cache).should be_false
+    # Invalid pattern still matches as a literal substring (fallback intact).
+    lit = Authz0::Scan::HttpResponse.new(200, "x [unclosed( y", 14_i64)
+    Authz0::Scan::Asserter.accessible?(lit, asserts, cache).should be_false
+    # Clean body: no fail signal → 2xx default applies.
+    ok = Authz0::Scan::HttpResponse.new(200, "all good", 8_i64)
+    Authz0::Scan::Asserter.accessible?(ok, asserts, cache).should be_true
+    # Same verdicts without a cache (standalone behavior unchanged).
+    Authz0::Scan::Asserter.accessible?(hit, asserts).should be_false
+    Authz0::Scan::Asserter.accessible?(ok, asserts).should be_true
+  end
 end
 
 # ---- CLI-level regressions (drive the real binary) ----------------------

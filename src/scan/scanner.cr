@@ -51,6 +51,9 @@ module Authz0
         # Serializes the live-counter writes so concurrent workers (notably
         # under -Dpreview_mt) can't interleave bytes into a garbled line.
         @progress_mutex = Mutex.new
+        # fail-regex patterns compiled once per scan (see run); read-only while
+        # workers run, so it's safe to share without locking.
+        @regex_cache = {} of String => Regex
         # Flipped off once the progress consumer closes the pipe, so a broken
         # `… | head` doesn't make every remaining probe re-hit EPIPE.
         @progress_alive = true
@@ -62,6 +65,9 @@ module Authz0
         # No declared identities → probe anonymously so a bare scan still
         # produces output.
         creds = [Credential.new("")] of Credential if creds.empty?
+
+        # Compile fail-regex patterns once up front rather than per response.
+        @regex_cache = Asserter.compile_regexes(asserts)
 
         jobs = [] of Job
         ordinal = 0
@@ -127,7 +133,7 @@ module Authz0
         response = @client.request(target.method, url, headers, target.body, sensitive_headers(target, cred))
         elapsed = (Time.instant - started).total_milliseconds.round.to_i
 
-        accessible = Asserter.accessible?(response, asserts)
+        accessible = Asserter.accessible?(response, asserts, @regex_cache)
         verdict, expected = evaluate(target, cred.role, accessible, response)
 
         result = Result.new(
