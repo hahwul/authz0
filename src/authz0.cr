@@ -62,6 +62,7 @@ require "./report/json_report"
 require "./report/markdown_report"
 require "./report/sarif_report"
 require "./report/html_report"
+require "./report/csv_report"
 require "./export/yaml_export"
 
 require "./cli/runner"

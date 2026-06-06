@@ -10,6 +10,7 @@ module Authz0
       Markdown # GitHub-flavored pipe table
       Sarif    # SARIF 2.1.0 (CI / code scanning)
       Html     # self-contained HTML page
+      Csv      # RFC-4180 CSV, one row per probe
 
       def self.parse?(value : String) : Format?
         case value.downcase
@@ -19,12 +20,13 @@ module Authz0
         when "markdown", "md" then Markdown
         when "sarif"          then Sarif
         when "html"           then Html
+        when "csv"            then Csv
         else                       nil
         end
       end
 
       def self.names : Array(String)
-        %w[table plain json markdown sarif html]
+        %w[table plain json markdown sarif html csv]
       end
     end
 
@@ -70,6 +72,7 @@ module Authz0
       in Format::Json     then JsonReport.new.render(results)
       in Format::Sarif    then SarifReport.new.render(results)
       in Format::Html     then HtmlReport.new.render(results)
+      in Format::Csv      then CsvReport.new.render(results)
       end
     end
 
@@ -82,6 +85,7 @@ module Authz0
       in Format::Json     then "json"
       in Format::Sarif    then "sarif"
       in Format::Html     then "html"
+      in Format::Csv      then "csv"
       end
     end
   end

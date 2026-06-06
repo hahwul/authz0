@@ -52,7 +52,7 @@ module Authz0::CLI
           delay = parse_int(v, "--delay", min: 0)
         end
         p.on("--proxy URL", "Route through an HTTP proxy (e.g. Burp)") { |v| proxy = v }
-        p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html") { |v| output_name = v }
+        p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
         p.on("--only-findings", "Report only X (finding) / ? rows") { only_findings = true }

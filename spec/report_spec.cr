@@ -71,4 +71,15 @@ describe Authz0::Report do
     rendered.should_not contain("/<script>")
     rendered.should contain("&lt;script&gt;")
   end
+
+  it "renders CSV that round-trips, quoting fields with commas" do
+    res = [Authz0::Result.new(0, "https://x/a?q=1,2", "GET", "u", [] of String, [] of String,
+      accessible: true, expected_access: true, status_code: 200, resp_size: 0_i64, verdict: "O")]
+    rendered = Authz0::Report.render(res, Authz0::Report::Format::Csv, false)
+    rows = CSV.parse(rendered)
+    rows.first.should eq(Authz0::Report::CsvReport::HEADERS)
+    rows.size.should eq(2)
+    rows[1][3].should eq("https://x/a?q=1,2") # url with comma preserved
+    rows[1][8].should eq("info")              # severity column
+  end
 end
