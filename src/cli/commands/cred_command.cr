@@ -1,5 +1,6 @@
 require "option_parser"
 require "json"
+require "base64"
 require "../helpers"
 require "../../models/credential"
 require "../../utils/errors"
@@ -73,6 +74,14 @@ module Authz0::CLI
           k, val = Validator.cookie!(v)
           cookies[k] = resolve_env(val)
           seen << "cookies"
+        end
+        p.on("--basic USER:PASS", "Set HTTP Basic auth (Authorization: Basic …)") do |v|
+          idx = v.index(':')
+          raise ValidationError.new("--basic expects user:pass") unless idx
+          user = v[0...idx]
+          pass = resolve_env(v[(idx + 1)..])
+          headers["Authorization"] = "Basic #{Base64.strict_encode("#{user}:#{pass}")}"
+          seen << "headers"
         end
         p.on("--from-curl CURL", "Import headers + cookies from a 'copy as cURL' command") do |v|
           parsed = CurlParser.parse(v)
