@@ -426,6 +426,20 @@ describe "usability regressions" do
     end
   end
 
+  it "hints at a likely soft-denial (200 'access denied') false positive" do
+    SpecHelper.with_temp_home do |home|
+      SpecHelper.with_test_server do |base|
+        CLISpec.run(["session", "new", "s", "--base-url", base], home)
+        CLISpec.run(["url", "add", "s", "/softdeny", "--allow-role", "admin"], home)
+        CLISpec.run(["cred", "add", "s", "admin", "--header", "Authorization: Bearer admintoken999"], home)
+        # this role's token isn't recognized → server returns the small 200 "Access Denied"
+        CLISpec.run(["cred", "add", "s", "guest", "--header", "Authorization: Bearer none"], home)
+        r = CLISpec.run(["scan", "s", "--no-progress", "-o", "plain"], home)
+        r.stderr.should contain("soft deni") # advisory naming the suspicious finding
+      end
+    end
+  end
+
   it "accepts delete/remove/rm interchangeably across resources" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

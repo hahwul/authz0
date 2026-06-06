@@ -86,6 +86,10 @@ module SpecHelper
       (role == "admin" || role == "manager") ? {200, "reports"} : {403, "Access Denied"}
     when {"GET", "/secret"}
       {200, "TOP SECRET"}
+    when {"GET", "/softdeny"}
+      # Soft denial: authorized roles get a large body; everyone else gets a
+      # 200 (not 403) carrying a small "Access Denied" page.
+      (role == "admin" || role == "manager") ? {200, "REAL REPORT CONTENT #{"x" * 400}"} : {200, "Access Denied"}
     when {"POST", "/login"}
       {200, "ok"}
     else

@@ -231,7 +231,39 @@ module Authz0::CLI
         Logger.success "report written to #{path} (#{save_format.to_s.downcase})"
       end
 
+      hint_soft_denial(results, asserts)
       report_outcome(summary, baseline_path, new_ids, fail_on_findings, fail_on_new)
+    end
+
+    # The classic soft-denial false positive: an endpoint returns 200 with an
+    # "Access Denied" body to a role that should be blocked. Status-only
+    # detection scores that as an unauthorized finding. We can't be sure without
+    # a body assert, but the tell is precise and low-noise: an "unauthorized"
+    # finding whose body is much SMALLER than the body an authorized role got
+    # for the same url. Only hint when no body/size assert is configured (the
+    # user hasn't already handled it), and tie it to an actual finding so it
+    # never fires on a clean scan.
+    private def hint_soft_denial(results, asserts)
+      return if Logger.quiet?
+      return if asserts.any? { |a| {"fail-regex", "fail-size", "fail-header"}.includes?(a.type) }
+
+      authorized_size = {} of String => Int64
+      results.each do |r|
+        next unless r.error.nil? && r.expected_access && r.accessible
+        cur = authorized_size[r.url]?
+        authorized_size[r.url] = r.resp_size if cur.nil? || r.resp_size > cur
+      end
+
+      suspect = results.find do |r|
+        next false unless r.error.nil? && r.unauthorized?
+        base = authorized_size[r.url]?
+        !base.nil? && base >= 256 && r.resp_size * 2 <= base
+      end
+      return if suspect.nil?
+
+      Logger.warn "a finding on #{suspect.url} returned a much smaller body than an authorized role got — " \
+                  "if that's a 200 \"access denied\" page it's a false positive; add an " \
+                  "`assert add <session> --fail-regex \"...\"` (or --fail-size) rule to detect soft denials"
     end
 
     # Final stderr summary + process exit code. Kept out of `run` so the option
