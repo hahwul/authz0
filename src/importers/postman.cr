@@ -9,11 +9,15 @@ module Authz0
     # leaf items carry a `request` (method, url, optional raw body). Folders
     # nest under their own `item` arrays and are walked recursively.
     class Postman
+      # Collection-level {{variable}} substitutions, populated per parse.
+      @vars : Hash(String, String) = {} of String => String
+
       def parse(content : String, base_url : String) : Array(TargetURL)
         root = JSON.parse(content)
         items = root["item"]?.try(&.as_a?)
         raise ImportError.new("not a Postman collection (no 'item' array)") if items.nil?
 
+        @vars = collection_vars(root)
         targets = [] of TargetURL
         walk(items, base_url, targets)
         targets
@@ -23,6 +27,30 @@ module Authz0
 
       def from_file(path : String, base_url : String) : Array(TargetURL)
         parse(Importers.read_file(path), base_url)
+      end
+
+      # Build the {{key}} → value map from the collection's `variable` array.
+      private def collection_vars(root : JSON::Any) : Hash(String, String)
+        out = {} of String => String
+        if arr = root["variable"]?.try(&.as_a?)
+          arr.each do |v|
+            h = v.as_h?
+            next if h.nil?
+            key = h["key"]?.try(&.as_s?)
+            val = h["value"]?.try(&.as_s?)
+            out[key] = val if key && val
+          end
+        end
+        out
+      end
+
+      # Replace {{var}} tokens with their collection value; leave unknown ones
+      # untouched (they'll be flagged as templated on import).
+      private def substitute(text : String) : String
+        return text if @vars.empty?
+        text.gsub(/\{\{([^}]+)\}\}/) do |match|
+          @vars[$1.strip]? || match
+        end
       end
 
       private def walk(items : Array(JSON::Any), base_url : String, targets : Array(TargetURL))
@@ -52,8 +80,10 @@ module Authz0
         method = (req["method"]?.try(&.as_s?) || "GET").upcase
         url = extract_url(req["url"]?)
         return nil if url.nil? || url.empty?
+        url = substitute(url)
 
         body, ctype = extract_body(req["body"]?)
+        body = substitute(body) if body
         path = Importers.relativize(url, base_url)
         TargetURL.new(path, method, body: body, content_type: ctype)
       end

@@ -92,6 +92,18 @@ describe Authz0::Importers::Postman do
     targets[0].path.should eq("/login")
     targets[0].content_type.should eq("json")
   end
+
+  it "substitutes collection {{variables}} and leaves unknown ones literal" do
+    pm = %({"variable":[{"key":"baseUrl","value":"https://api.example.com"},{"key":"ver","value":"v2"}],
+      "item":[
+        {"name":"a","request":{"method":"GET","url":{"raw":"{{baseUrl}}/{{ver}}/me"}}},
+        {"name":"b","request":{"method":"GET","url":{"raw":"{{baseUrl}}/{{missing}}/x"}}}
+      ]})
+    targets = Authz0::Importers::Postman.new.parse(pm, BASE)
+    targets[0].path.should eq("/v2/me")
+    targets[1].path.should eq("/{{missing}}/x")
+    targets[1].templated?.should be_true
+  end
 end
 
 describe "Importers.merge" do
