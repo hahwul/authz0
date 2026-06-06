@@ -470,7 +470,11 @@ describe "usability regressions" do
       masked.stdout.should_not contain("guest")            # only the asked-for role
 
       CLISpec.run(["cred", "show", "s", "admin", "--reveal"], home).stdout.should contain("SUPERSECRETTOKEN")
-      JSON.parse(CLISpec.run(["cred", "show", "s", "admin", "--json"], home).stdout)["role"].as_s.should eq("admin")
+      masked_json = JSON.parse(CLISpec.run(["cred", "show", "s", "admin", "--json"], home).stdout)
+      masked_json["role"].as_s.should eq("admin")
+      masked_json["redacted"].as_bool.should be_true # machine consumer can tell values are masked
+      revealed_json = JSON.parse(CLISpec.run(["cred", "show", "s", "admin", "--json", "--reveal"], home).stdout)
+      revealed_json["redacted"].as_bool.should be_false
       CLISpec.run(["cred", "show", "s", "nobody"], home).status.should eq(3) # NotFound
     end
   end

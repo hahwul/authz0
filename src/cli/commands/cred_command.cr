@@ -258,6 +258,9 @@ module Authz0::CLI
       json.object do
         json.field "role", c.role
         json.field "auth_type", c.auth_type
+        # Tell a machine consumer whether the values below are masked, so it
+        # doesn't mistake "Bear…oken" for the real token (add --reveal to get it).
+        json.field "redacted", !reveal
         json.field "headers" do
           json.object { c.headers.each { |k, v| json.field k, reveal ? v : Masking.mask(v) } }
         end
