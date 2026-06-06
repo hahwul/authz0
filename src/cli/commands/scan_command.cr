@@ -24,6 +24,7 @@ module Authz0::CLI
       timeout = settings.effective_timeout
       proxy = settings.proxy
       output_name = settings.effective_output
+      output_explicit = false
       delay = 0
       follow = 0
       retries = 0
@@ -69,7 +70,7 @@ module Authz0::CLI
         p.on("--dry-run", "Preview the probe matrix without sending requests") { dry_run = true }
         p.on("--tag TAG", "Scan only urls carrying this tag") { |v| tag_filter = v }
         p.on("--match GLOB", "Scan only urls whose path matches GLOB (e.g. /admin/*)") { |v| match_filter = v }
-        p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
+        p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v; output_explicit = true }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
         p.on("--only-findings", "Report only X (finding) / ? rows") { only_findings = true }
@@ -206,8 +207,16 @@ module Authz0::CLI
         archive_results(s, results)
       end
       if path = save_path
-        File.write(path, Report.render(display, format, false))
-        Logger.success "report written to #{path}"
+        # Pick the file format from its extension unless -o was given
+        # explicitly, so `--save report.html` writes HTML while stdout stays
+        # a readable table.
+        save_format = format
+        unless output_explicit
+          ext = File.extname(path).lchop('.')
+          save_format = Report::Format.parse?(ext) || format
+        end
+        File.write(path, Report.render(display, save_format, false))
+        Logger.success "report written to #{path} (#{save_format.to_s.downcase})"
       end
 
       if summary.findings > 0

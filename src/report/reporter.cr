@@ -14,14 +14,14 @@ module Authz0
 
       def self.parse?(value : String) : Format?
         case value.downcase
-        when "table"          then Table
-        when "plain", "text"  then Plain
-        when "json"           then Json
-        when "markdown", "md" then Markdown
-        when "sarif"          then Sarif
-        when "html"           then Html
-        when "csv"            then Csv
-        else                       nil
+        when "table"                then Table
+        when "plain", "text", "txt" then Plain
+        when "json"                 then Json
+        when "markdown", "md"       then Markdown
+        when "sarif"                then Sarif
+        when "html"                 then Html
+        when "csv"                  then Csv
+        else                             nil
         end
       end
 
