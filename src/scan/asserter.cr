@@ -21,25 +21,45 @@ module Authz0
 
         margin = fail_size_margin(asserts)
 
+        code = response.status_code
+        has_success = false
+        success_match = false
+
         asserts.each do |a|
           case a.type
           when "fail-status"
-            each_code(a.value) do |code|
-              return false if response.status_code == code
-            end
+            return false if status_list_matches?(code, a.value)
           when "fail-regex"
             return false if body_matches?(response.body, a.value)
           when "fail-size"
             if target = a.value.strip.to_i64?
               return false if (response.size - target).abs <= margin
             end
+          when "success-status"
+            has_success = true
+            success_match ||= status_list_matches?(code, a.value)
           end
         end
 
-        success = success_statuses(asserts)
-        return success.includes?(response.status_code) unless success.empty?
+        return success_match if has_success
+        (200..299).includes?(code)
+      end
 
-        (200..299).includes?(response.status_code)
+      # Match a status against a comma list whose tokens are either exact codes
+      # ("200") or status classes ("2xx", "4xx").
+      private def status_list_matches?(status : Int32, value : String) : Bool
+        value.split(',').any? { |t| status_matches?(status, t) }
+      end
+
+      private def status_matches?(status : Int32, token : String) : Bool
+        t = token.strip.downcase
+        if m = t.match(/\A([1-5])xx\z/)
+          return status // 100 == m[1].to_i
+        end
+        if code = t.to_i?
+          return status == code
+        end
+        false
       end
 
       private def fail_size_margin(asserts : Array(Assertion)) : Int64
@@ -51,23 +71,6 @@ module Authz0
           end
         end
         0_i64
-      end
-
-      private def success_statuses(asserts : Array(Assertion)) : Array(Int32)
-        out = [] of Int32
-        asserts.each do |a|
-          next unless a.type == "success-status"
-          each_code(a.value) { |code| out << code }
-        end
-        out
-      end
-
-      private def each_code(value : String, &)
-        value.split(',').each do |v|
-          if code = v.strip.to_i?
-            yield code
-          end
-        end
       end
 
       # Match the response body against the assert value as a regex, falling

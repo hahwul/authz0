@@ -51,12 +51,12 @@ module Authz0::CLI
 
       OptionParser.parse(args) do |p|
         p.banner = "Usage: authz0 assert add <session> [rule options]"
-        p.on("--success-status LIST", "Codes that mean accessible") do |v|
-          Validator.status_list!(v) # validate
+        p.on("--success-status LIST", "Codes/classes that mean accessible (200,201 or 2xx)") do |v|
+          Validator.status_tokens!(v) # validate (exact codes or Nxx classes)
           rules << Assertion.new("success-status", v)
         end
-        p.on("--fail-status CODE", "Code that means NOT accessible") do |v|
-          Validator.status_list!(v)
+        p.on("--fail-status LIST", "Codes/classes that mean NOT accessible (403 or 4xx)") do |v|
+          Validator.status_tokens!(v)
           rules << Assertion.new("fail-status", v)
         end
         p.on("--fail-regex PATTERN", "Body match means NOT accessible") do |v|

@@ -54,4 +54,15 @@ describe Authz0::Scan::Asserter do
     errored = Authz0::Scan::HttpResponse.errored("timeout")
     Authz0::Scan::Asserter.accessible?(errored, [assertion("success-status", "200")]).should be_false
   end
+
+  it "matches status classes (2xx / 4xx / 5xx)" do
+    ok = [assertion("success-status", "2xx")]
+    Authz0::Scan::Asserter.accessible?(resp(204), ok).should be_true
+    Authz0::Scan::Asserter.accessible?(resp(301), ok).should be_false
+
+    deny = [assertion("fail-status", "4xx,5xx")]
+    Authz0::Scan::Asserter.accessible?(resp(403), deny).should be_false
+    Authz0::Scan::Asserter.accessible?(resp(503), deny).should be_false
+    Authz0::Scan::Asserter.accessible?(resp(200), deny).should be_true
+  end
 end

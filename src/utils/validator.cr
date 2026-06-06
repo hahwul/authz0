@@ -123,6 +123,25 @@ module Authz0
       out
     end
 
+    # Like status_list! but also accepts status *classes* ("2xx", "4xx"), used
+    # by assert rules. Returns the cleaned token list (lower-cased).
+    STATUS_CLASS_RE = /\A[1-5]xx\z/
+
+    def status_tokens!(raw : String) : Array(String)
+      tokens = csv(raw).map(&.downcase)
+      if tokens.empty?
+        raise ValidationError.new("status list is empty: #{raw}")
+      end
+      tokens.each do |t|
+        next if t.matches?(STATUS_CLASS_RE)
+        code = t.to_i?
+        unless code && (100..599).includes?(code)
+          raise ValidationError.new("invalid HTTP status or class (use 200 or 2xx): #{t}")
+        end
+      end
+      tokens
+    end
+
     private def parse_uri(url : String) : URI
       URI.parse(url)
     rescue ex
