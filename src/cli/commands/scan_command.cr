@@ -28,6 +28,7 @@ module Authz0::CLI
       follow = 0
       retries = 0
       user_agent : String? = nil
+      include_anon = false
       insecure = true
       progress = true
       only_findings = false
@@ -59,6 +60,7 @@ module Authz0::CLI
         p.on("--max-redirects N", "Max redirect hops to follow (implies -L)") { |v| follow = parse_int(v, "--max-redirects", min: 0) }
         p.on("--retries N", "Retry transient failures (timeout/429/503) N times") { |v| retries = parse_int(v, "--retries", min: 0) }
         p.on("--user-agent UA", "Override the User-Agent header") { |v| user_agent = v }
+        p.on("--anon", "Also probe each target anonymously (no credentials)") { include_anon = true }
         p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
@@ -99,7 +101,7 @@ module Authz0::CLI
         targets = parsed.targets
         asserts = parsed.asserts
         base_url = parsed.base_url
-        creds = build_creds(parsed.creds, ad_hoc_role, ad_hoc_headers, ad_hoc_cookies)
+        creds = build_creds(parsed.creds, ad_hoc_role, ad_hoc_headers, ad_hoc_cookies, include_anon)
         source_label = "template #{File.basename(tpl)}"
         raise ValidationError.new("template '#{tpl}' has no urls to scan") if targets.empty?
         # No session directory to archive into.
@@ -114,7 +116,7 @@ module Authz0::CLI
         ) if targets.empty?
         asserts = s.asserts
         base_url = s.meta.base_url
-        creds = build_creds(s.creds, ad_hoc_role, ad_hoc_headers, ad_hoc_cookies)
+        creds = build_creds(s.creds, ad_hoc_role, ad_hoc_headers, ad_hoc_cookies, include_anon)
         source_label = "'#{s.name}'"
       end
 
@@ -172,8 +174,9 @@ module Authz0::CLI
       end
     end
 
-    # Session credentials plus an optional inline (-r/-H/--cookie) identity.
-    private def build_creds(session_creds, role, headers, cookies) : Array(Credential)
+    # Session credentials plus an optional inline (-r/-H/--cookie) identity and,
+    # when requested, an anonymous baseline probe.
+    private def build_creds(session_creds, role, headers, cookies, include_anon = false) : Array(Credential)
       creds = session_creds.dup
       if role && !role.empty?
         if existing = creds.find { |c| c.role == role }
@@ -186,6 +189,9 @@ module Authz0::CLI
         # Headers given with no role → an anonymous-but-authenticated probe.
         creds << Credential.new("inline", headers: headers, cookies: cookies)
       end
+      # Prepend an unauthenticated probe so "reachable with no auth at all" is
+      # tested alongside the real roles.
+      creds.unshift(Credential.new("")) if include_anon && creds.none?(&.anonymous?)
       creds
     end
 
