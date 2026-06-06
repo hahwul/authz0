@@ -74,6 +74,14 @@ module Authz0::CLI
           cookies[k] = resolve_env(val)
           seen << "cookies"
         end
+        p.on("--from-curl CURL", "Import headers + cookies from a 'copy as cURL' command") do |v|
+          parsed = CurlParser.parse(v)
+          parsed.headers.each { |k, val| headers[k] = val; seen << "headers" }
+          parsed.cookies.each { |k, val| cookies[k] = val; seen << "cookies" }
+          if parsed.headers.empty? && parsed.cookies.empty?
+            raise ValidationError.new("no -H/--header or -b/--cookie found in the curl command")
+          end
+        end
         p.on("--auth-type T", "Informational auth label") { |v| auth_type = v; seen << "auth_type" }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
         p.unknown_args { |before, after| positional = before + after }

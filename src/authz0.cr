@@ -34,6 +34,7 @@ require "./utils/masking"
 require "./utils/table"
 require "./utils/runtime"
 require "./utils/suggester"
+require "./utils/curl_parser"
 
 require "./models/session_meta"
 require "./models/target_url"
