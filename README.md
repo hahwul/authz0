@@ -109,7 +109,9 @@ Re-imports are idempotent: endpoints already present (same method+path+body) are
 | `assert add/list/remove` | Access-detection rules (success-status / fail-status / fail-regex / fail-size) |
 | `scan <session>` | Run the scan and report findings |
 | `results list/show/clean <session>` | Browse archived scans |
-| `import <type> <session> <file>` | Load endpoints from external sources (`-` = stdin) |
+| `stats` | Cross-session overview + open findings |
+| `session export/import` | Back up / restore a session as one JSON file |
+| `import <type> <session> <file>` | Load endpoints (`auto` sniffs the format; `-` = stdin) |
 | `export yaml <session> <out>` | Write a v1-compatible YAML template (`-` for stdout) |
 | `doctor` | Sanity + credential-permission audit |
 | `config get/set/list/unset` | Global settings (proxy, concurrency, timeout, output, color, retries, follow_redirects, user_agent) |
@@ -132,13 +134,15 @@ authz0 cred add shop ops --basic 'ops:s3cret'
 
 ```
 --anon                 also probe each target with no auth (catches public exposure)
---severity high|low    show only findings of at least this severity
+--severity high|low    show only findings of one severity (high=unauthorized, low=over-restrictive)
 --sort severity        order rows findings-first (also: latency, status)
 --tag T / --match GLOB scan only a subset of a large session
 -L / --max-redirects N follow redirects
 --retries N            retry transient failures (timeout/429/503)
 --extra-header "K: V"  header sent with every probe/role
+--proxy http://u:p@h   route through an (optionally authenticated) proxy
 --dry-run              preview the probe matrix without sending requests
+--baseline latest      diff against the session's last scan; --only-new / --fail-on-new
 -o FORMAT / --save F   table|plain|json|markdown|sarif|html|csv (file format inferred from extension)
 --fail-on-findings     non-zero exit for CI
 ```
