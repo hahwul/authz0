@@ -166,6 +166,9 @@ module Authz0::CLI
       if dry_run
         probe_creds = creds.empty? ? [Credential.new("")] : creds
         Logger.info "dry run: #{source_label} — #{pluralize(targets.size, "url")} × #{creds_label(creds)} = #{pluralize(targets.size * probe_creds.size, "probe")}#{via}"
+        # Surface config problems in the preview too, so they're caught before
+        # the real run rather than after.
+        warn_policy_gaps(targets, creds)
         targets.each do |t|
           resolved = t.resolve(base_url)
           probe_creds.each { |c| puts "#{t.method.ljust(6)} #{resolved}  [#{c.display_role}]" }
