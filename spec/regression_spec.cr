@@ -86,7 +86,7 @@ describe "regressions (adversarial review)" do
       t.add(["user"])
       lines = t.render(Authz0::Table::Style::Box, false).lines
       # Every rendered line shares the same visible width.
-      widths = lines.map { |l| Authz0::Table.display_width(l) }.uniq
+      widths = lines.map { |l| Authz0::Table.display_width(l) }.uniq!
       widths.size.should eq(1)
     end
   end

@@ -90,7 +90,7 @@ describe Authz0::Importers::V1Template do
 
       # manager reaching admin-only /secret is the one finding.
       results.count(&.vulnerable?).should eq(1)
-      finding = results.find(&.vulnerable?).not_nil!
+      finding = results.find!(&.vulnerable?)
       finding.url.should end_with("/secret")
       finding.role.should eq("manager")
     end

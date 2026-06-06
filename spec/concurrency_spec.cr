@@ -17,12 +17,12 @@ describe "scanner concurrency integrity" do
       # Exactly one probe per (target, cred).
       results.size.should eq(n * roles.size)
       results.all? { |r| r.status_code == 200 }.should be_true
-      results.count { |r| r.error }.should eq(0)
+      results.count(&.error).should eq(0)
 
       # Every target index appears once per role.
       by_index = results.group_by(&.index)
       by_index.size.should eq(n)
-      by_index.each_value { |group| group.size.should eq(roles.size) }
+      by_index.each_value(&.size.should(eq(roles.size)))
 
       # The echoed URL must match the slot's index — proof no worker wrote into
       # another's slot.

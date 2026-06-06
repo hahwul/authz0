@@ -22,3 +22,8 @@ Metrics/CyclomaticComplexity:
 # surfacing a real nil risk.
 Lint/NotNil:
   Enabled: false
+
+# Flags TODO/FIXME/BUG words in comments. The test fixture deliberately
+# describes its planted "BUG" scenarios in prose — not actionable markers.
+Documentation/DocumentationAdmonition:
+  Enabled: false

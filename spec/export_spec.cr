@@ -28,7 +28,7 @@ describe Authz0::Export::YamlExport do
       creds[0]["rolename"].as_s.should eq("admin")
       headers = creds[0]["headers"].as_a.map(&.as_s)
       headers.should contain("X-API-Key: secret")
-      headers.any? { |h| h.starts_with?("Cookie: sid=1") }.should be_true
+      headers.any?(&.starts_with?("Cookie: sid=1")).should be_true
     end
   end
 end

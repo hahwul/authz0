@@ -34,7 +34,7 @@ describe Authz0::Scan::Scanner do
 
       # manager→/admin, user→/secret, manager→/secret = 3 findings.
       findings.size.should eq(3)
-      findings.map { |f| {f.url.split("/").last, f.role} }.sort.should eq(
+      findings.map { |f| {f.url.split("/").last, f.role} }.sort!.should eq(
         [{"admin", "manager"}, {"secret", "manager"}, {"secret", "user"}].sort
       )
     end

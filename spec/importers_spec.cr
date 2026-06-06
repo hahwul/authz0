@@ -83,10 +83,10 @@ describe Authz0::Importers::OpenAPI do
               application/json: {}
     YAML
     targets = Authz0::Importers::OpenAPI.new.parse(spec, BASE)
-    targets.map { |t| {t.method, t.path} }.sort_by { |m, _| m }.should eq([
+    targets.map { |t| {t.method, t.path} }.sort_by! { |m, _| m }.should eq([
       {"GET", "/v1/pets"}, {"POST", "/v1/pets"},
     ])
-    targets.find { |t| t.method == "POST" }.not_nil!.content_type.should eq("json")
+    targets.find! { |t| t.method == "POST" }.content_type.should eq("json")
   end
 
   it "handles swagger 2 host+basePath" do
