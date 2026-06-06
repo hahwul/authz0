@@ -25,6 +25,7 @@ module Authz0::CLI
       proxy = settings.proxy
       output_name = settings.effective_output
       delay = 0
+      follow = 0
       insecure = true
       progress = true
       only_findings = false
@@ -52,6 +53,8 @@ module Authz0::CLI
           delay = parse_int(v, "--delay", min: 0)
         end
         p.on("--proxy URL", "Route through an HTTP proxy (e.g. Burp)") { |v| proxy = v }
+        p.on("-L", "--follow-redirects", "Follow 3xx redirects (up to --max-redirects)") { follow = 10 if follow == 0 }
+        p.on("--max-redirects N", "Max redirect hops to follow (implies -L)") { |v| follow = parse_int(v, "--max-redirects", min: 0) }
         p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
@@ -122,6 +125,7 @@ module Authz0::CLI
         insecure: insecure,
         delay_ms: delay,
         progress: progress && !Logger.quiet?,
+        follow_redirects: follow,
       )
       scanner = Scan::Scanner.new(options)
       results = scanner.run(targets, creds, asserts, base_url)

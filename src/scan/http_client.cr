@@ -13,8 +13,10 @@ module Authz0
       getter body : String
       getter size : Int64
       getter error : String?
+      getter redirect_location : String?
 
-      def initialize(@status_code : Int32, @body : String, @size : Int64, @error : String? = nil)
+      def initialize(@status_code : Int32, @body : String, @size : Int64,
+                     @error : String? = nil, @redirect_location : String? = nil)
       end
 
       def self.errored(message : String) : HttpResponse
@@ -23,6 +25,11 @@ module Authz0
 
       def ok? : Bool
         @error.nil?
+      end
+
+      # A followable redirect: a 3xx with a Location to chase.
+      def redirect? : Bool
+        {301, 302, 303, 307, 308}.includes?(@status_code) && !@redirect_location.nil?
       end
     end
 
@@ -34,14 +41,47 @@ module Authz0
     class HttpClient
       DEFAULT_USER_AGENT = "authz0/#{Authz0::VERSION}"
 
-      def initialize(@timeout : Int32 = 10, @proxy : String? = nil, @insecure : Bool = true)
+      def initialize(@timeout : Int32 = 10, @proxy : String? = nil, @insecure : Bool = true,
+                     @follow_redirects : Int32 = 0)
       end
 
+      # Issue the request, optionally chasing up to @follow_redirects hops. The
+      # returned response is the final one in the chain (or the first error).
       def request(method : String, url : String, headers : HTTP::Headers, body : String?) : HttpResponse
+        current_url = url
+        current_method = method
+        current_body = body
+        hops = 0
+        loop do
+          response = perform(current_method, current_url, headers, current_body, hops)
+          return response unless response.ok?
+          return response unless @follow_redirects > 0 && response.redirect? && hops < @follow_redirects
+
+          loc = response.redirect_location
+          return response if loc.nil? || loc.empty?
+          current_url = resolve_redirect(URI.parse(current_url), loc)
+
+          # 303 → always GET; 301/302 downgrade a non-GET/HEAD method to GET
+          # (matching browser behavior); 307/308 preserve method + body.
+          status = response.status_code
+          if status == 303 || ((status == 301 || status == 302) && current_method != "GET" && current_method != "HEAD")
+            current_method = "GET"
+            current_body = nil
+          end
+          hops += 1
+        end
+      end
+
+      # One request, no redirect logic. All transport errors are caught here so
+      # a failed hop terminates the chain as an errored response.
+      private def perform(method : String, url : String, headers : HTTP::Headers, body : String?, hops : Int32) : HttpResponse
         uri = URI.parse(url)
         unless uri.scheme == "http" || uri.scheme == "https"
           return HttpResponse.errored("unsupported scheme: #{uri.scheme}")
         end
+        # On a redirect hop, refresh Host to the new target; hop 0 keeps any
+        # user-supplied Host.
+        headers.delete("Host") if hops > 0
         apply_defaults(headers, uri)
 
         proxy = @proxy
@@ -62,6 +102,26 @@ module Authz0
         HttpResponse.errored("malformed url: #{ex.message}")
       rescue ex
         HttpResponse.errored(ex.message || ex.class.name)
+      end
+
+      # Resolve a Location header (absolute URL, absolute path, or relative)
+      # against the request URI.
+      private def resolve_redirect(base : URI, location : String) : String
+        loc = location.strip
+        return loc if loc.starts_with?("http://") || loc.starts_with?("https://")
+        origin = String.build do |s|
+          s << base.scheme << "://" << base.host
+          p = base.port
+          s << ":" << p if p && p != (base.scheme == "https" ? 443 : 80)
+        end
+        return origin + loc if loc.starts_with?("/")
+        dir = base.path
+        idx = dir.rindex('/')
+        dir = idx ? dir[0..idx] : "/"
+        dir = "/" if dir.empty?
+        origin + dir + loc
+      rescue
+        location
       end
 
       # --- direct (no proxy) --------------------------------------------
@@ -156,7 +216,8 @@ module Authz0
 
       private def to_response(response : HTTP::Client::Response) : HttpResponse
         body = response.body? || ""
-        HttpResponse.new(response.status_code, body, body.bytesize.to_i64)
+        HttpResponse.new(response.status_code, body, body.bytesize.to_i64,
+          redirect_location: response.headers["Location"]?)
       end
 
       private def apply_defaults(headers : HTTP::Headers, uri : URI)

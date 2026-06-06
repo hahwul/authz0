@@ -64,6 +64,26 @@ describe Authz0::Scan::Scanner do
     end
   end
 
+  it "follows redirects only when asked, up to the hop limit" do
+    SpecHelper.with_test_server do |base|
+      targets = [Authz0::TargetURL.new("/redirect/3", "GET")]
+      asserts = [Authz0::Assertion.new("success-status", "200")]
+      anon = [] of Authz0::Credential
+
+      no_follow = Authz0::Scan::Scanner.new(Authz0::Scan::Options.new(progress: false, timeout: 5))
+        .run(targets, anon, asserts, base)
+      no_follow.first.status_code.should eq(302)
+
+      followed = Authz0::Scan::Scanner.new(Authz0::Scan::Options.new(progress: false, timeout: 5, follow_redirects: 10))
+        .run(targets, anon, asserts, base)
+      followed.first.status_code.should eq(200)
+
+      capped = Authz0::Scan::Scanner.new(Authz0::Scan::Options.new(progress: false, timeout: 5, follow_redirects: 1))
+        .run(targets, anon, asserts, base)
+      capped.first.status_code.should eq(302) # stopped before landing
+    end
+  end
+
   it "records a request error as verdict '?' instead of crashing" do
     targets = [Authz0::TargetURL.new("/x", "GET", allow_roles: ["admin"])]
     # Nothing is listening on this port.

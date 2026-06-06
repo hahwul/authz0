@@ -30,10 +30,24 @@ module SpecHelper
   # /admin for managers, and an unprotected /secret).
   def with_test_server(&)
     server = HTTP::Server.new do |ctx|
-      role = role_of(ctx)
-      status, body = respond(ctx.request.method, ctx.request.path, role)
-      ctx.response.status_code = status
-      ctx.response.print body
+      path = ctx.request.path
+      # /redirect/<n> bounces to /redirect/<n-1>, landing on 200 at 0 — for
+      # redirect-follow tests.
+      if path.starts_with?("/redirect/")
+        n = path.split("/")[2]?.try(&.to_i?) || 0
+        if n <= 0
+          ctx.response.status_code = 200
+          ctx.response.print "landed"
+        else
+          ctx.response.status_code = 302
+          ctx.response.headers["Location"] = "/redirect/#{n - 1}"
+        end
+      else
+        role = role_of(ctx)
+        status, body = respond(ctx.request.method, path, role)
+        ctx.response.status_code = status
+        ctx.response.print body
+      end
     end
     address = server.bind_tcp("127.0.0.1", 0)
     spawn { server.listen }
