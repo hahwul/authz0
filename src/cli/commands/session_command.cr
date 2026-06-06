@@ -5,6 +5,7 @@ require "../../store/session_store"
 require "../../utils/errors"
 require "../../utils/logger"
 require "../../utils/runtime"
+require "../../utils/masking"
 require "../../utils/validator"
 
 module Authz0::CLI
@@ -24,6 +25,8 @@ module Authz0::CLI
       delete <name> [-y]                                   Delete a session
       rename <old> <new>                                   Rename a session
       clone <source> <target>                              Copy a session
+      export <name> <file> [--redact]                      Back up a session to one JSON file
+      import <file> [--name <name>]                        Restore a session from a JSON file
     USAGE
 
     def run(args : Array(String))
@@ -36,6 +39,8 @@ module Authz0::CLI
       when "delete", "rm"  then delete(args)
       when "rename"        then rename(args)
       when "clone"         then clone(args)
+      when "export"        then export_session(args)
+      when "import"        then import_session(args)
       when nil, "-h", "--help"
         puts USAGE
       else
@@ -204,6 +209,83 @@ module Authz0::CLI
       raise ValidationError.new("usage: authz0 session clone <source> <target>") if positional.size < 2
       session = Store::SessionStore.clone(positional[0], positional[1])
       Logger.success "cloned '#{positional[0]}' → '#{session.name}'"
+    end
+
+    private def export_session(args)
+      redact = false
+      positional = [] of String
+      OptionParser.parse(args) do |p|
+        p.banner = "Usage: authz0 session export <name> <file> [--redact]"
+        p.on("--redact", "Mask credential values (shareable, not runnable)") { redact = true }
+        p.on("-h", "--help", "Show help") { puts p; exit 0 }
+        p.unknown_args { |before, _| positional = before }
+      end
+      session = open_session(positional[0]?)
+      file = positional[1]?
+      raise ValidationError.new("missing <file> argument", "use '-' for stdout") if file.nil?
+
+      bundle = JSON.build(indent: "  ") do |json|
+        json.object do
+          json.field "version", Authz0::VERSION
+          json.field "name", session.name
+          json.field "base_url", session.meta.base_url
+          json.field "description", session.meta.description
+          json.field "urls" { session.urls.to_json(json) }
+          json.field "asserts" { session.asserts.to_json(json) }
+          json.field "creds" do
+            json.array do
+              session.creds.each do |c|
+                json.object do
+                  json.field "role", c.role
+                  json.field "auth_type", c.auth_type
+                  json.field "headers" do
+                    json.object { c.headers.each { |k, v| json.field k, redact ? Masking.mask(v) : v } }
+                  end
+                  json.field "cookies" do
+                    json.object { c.cookies.each { |k, v| json.field k, redact ? Masking.mask(v) : v } }
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+
+      if file == "-"
+        print bundle
+      else
+        File.write(file, bundle + "\n")
+        Logger.success "exported '#{session.name}' → #{file}"
+        Logger.warn "bundle contains plaintext credentials — keep it private (use --redact to mask)" if !redact && session.creds.any? { |c| !c.headers.empty? || !c.cookies.empty? }
+      end
+    end
+
+    private def import_session(args)
+      name_override : String? = nil
+      positional = [] of String
+      OptionParser.parse(args) do |p|
+        p.banner = "Usage: authz0 session import <file> [--name <name>]"
+        p.on("--name NAME", "Import under this name (instead of the bundle's)") { |v| name_override = v }
+        p.on("-h", "--help", "Show help") { puts p; exit 0 }
+        p.unknown_args { |before, _| positional = before }
+      end
+      file = positional[0]?
+      raise ValidationError.new("missing <file> argument") if file.nil?
+      content = file == "-" ? STDIN.gets_to_end : File.read(file)
+
+      doc = JSON.parse(content)
+      name = name_override || doc["name"]?.try(&.as_s?)
+      base_url = doc["base_url"]?.try(&.as_s?)
+      raise ValidationError.new("bundle is missing 'name' or 'base_url'") if name.nil? || base_url.nil?
+      description = doc["description"]?.try(&.as_s?)
+
+      session = Store::SessionStore.create(name, base_url, description)
+      session.save_urls(Array(TargetURL).from_json((doc["urls"]? || JSON.parse("[]")).to_json))
+      session.save_creds(Array(Credential).from_json((doc["creds"]? || JSON.parse("[]")).to_json))
+      session.save_asserts(Array(Assertion).from_json((doc["asserts"]? || JSON.parse("[]")).to_json))
+      Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
+    rescue ex : JSON::ParseException
+      raise ValidationError.new("invalid session bundle JSON: #{ex.message}")
     end
   end
 end
