@@ -207,6 +207,37 @@ describe "audit regressions (rounds)" do
     longer.should_not eq(id)
     longer.starts_with?(id).should be_true # still a prefix of the full hash
   end
+
+  it "strips userinfo from the plain-HTTP proxy request line (#22)" do
+    req_line = nil.as(String?)
+    done = Channel(Nil).new
+    proxy = TCPServer.new("127.0.0.1", 0)
+    port = proxy.local_address.port
+    spawn do
+      sock = proxy.accept
+      head = String.build do |io|
+        while (line = sock.gets) && !line.strip.empty?
+          io << line << "\n"
+        end
+      end
+      req_line = head.lines.first?
+      sock << "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+      sock.flush
+      sock.close
+      done.send(nil)
+    end
+    Fiber.yield
+
+    client = Authz0::Scan::HttpClient.new(proxy: "http://127.0.0.1:#{port}")
+    client.request("GET", "http://user:s3cret@example.test/path", HTTP::Headers.new, nil)
+    done.receive
+    proxy.close
+
+    line = req_line.not_nil!
+    line.should contain("http://example.test/path") # absolute-form target
+    line.should_not contain("s3cret")               # userinfo removed
+    line.should_not contain("user:")
+  end
 end
 
 # ---- CLI-level regressions (drive the real binary) ----------------------
