@@ -71,6 +71,9 @@ module Authz0
     property timeout : Int32? = nil
     property output : String? = nil
     property color : Bool? = nil
+    property retries : Int32? = nil
+    property follow_redirects : Int32? = nil
+    property user_agent : String? = nil
 
     def initialize
     end

@@ -26,9 +26,9 @@ module Authz0::CLI
       output_name = settings.effective_output
       output_explicit = false
       delay = 0
-      follow = 0
-      retries = 0
-      user_agent : String? = nil
+      follow = settings.follow_redirects || 0
+      retries = settings.retries || 0
+      user_agent = settings.user_agent
       include_anon = false
       dry_run = false
       tag_filter : String? = nil

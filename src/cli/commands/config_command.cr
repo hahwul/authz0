@@ -11,7 +11,7 @@ module Authz0::CLI
   class ConfigCommand
     include Helpers
 
-    KEYS = %w[proxy concurrency timeout output color]
+    KEYS = %w[proxy concurrency timeout output color retries follow_redirects user_agent]
 
     USAGE = <<-USAGE
     Usage: authz0 config <action>
@@ -52,6 +52,9 @@ module Authz0::CLI
         {"timeout", value_with_default(s.timeout, Settings::DEFAULT_TIMEOUT)},
         {"output", s.output || "(unset → #{Settings::DEFAULT_OUTPUT})"},
         {"color", s.color.nil? ? "(unset → auto)" : s.color.to_s},
+        {"retries", value_with_default(s.retries, 0)},
+        {"follow_redirects", value_with_default(s.follow_redirects, 0)},
+        {"user_agent", s.user_agent || "(unset)"},
       ])
     end
 
@@ -60,12 +63,15 @@ module Authz0::CLI
       raise ValidationError.new("missing <key>") if key.nil?
       s = settings
       case key
-      when "proxy"       then puts s.proxy || ""
-      when "concurrency" then puts(s.concurrency || Settings::DEFAULT_CONCURRENCY)
-      when "timeout"     then puts(s.timeout || Settings::DEFAULT_TIMEOUT)
-      when "output"      then puts s.output || Settings::DEFAULT_OUTPUT
-      when "color"       then puts s.color.nil? ? "auto" : s.color.to_s
-      else                    raise ValidationError.new("unknown key: #{key}", "keys: #{KEYS.join(", ")}")
+      when "proxy"            then puts s.proxy || ""
+      when "concurrency"      then puts(s.concurrency || Settings::DEFAULT_CONCURRENCY)
+      when "timeout"          then puts(s.timeout || Settings::DEFAULT_TIMEOUT)
+      when "output"           then puts s.output || Settings::DEFAULT_OUTPUT
+      when "color"            then puts s.color.nil? ? "auto" : s.color.to_s
+      when "retries"          then puts(s.retries || 0)
+      when "follow_redirects" then puts(s.follow_redirects || 0)
+      when "user_agent"       then puts s.user_agent || ""
+      else                         raise ValidationError.new("unknown key: #{key}", "keys: #{KEYS.join(", ")}")
       end
     end
 
@@ -86,6 +92,12 @@ module Authz0::CLI
         s.output = value
       when "color"
         s.color = parse_bool(value)
+      when "retries"
+        s.retries = non_negative_int(value, key)
+      when "follow_redirects"
+        s.follow_redirects = non_negative_int(value, key)
+      when "user_agent"
+        s.user_agent = value
       else
         raise ValidationError.new("unknown key: #{key}", "keys: #{KEYS.join(", ")}")
       end
@@ -98,12 +110,15 @@ module Authz0::CLI
       raise ValidationError.new("missing <key>") if key.nil?
       s = settings
       case key
-      when "proxy"       then s.proxy = nil
-      when "concurrency" then s.concurrency = nil
-      when "timeout"     then s.timeout = nil
-      when "output"      then s.output = nil
-      when "color"       then s.color = nil
-      else                    raise ValidationError.new("unknown key: #{key}", "keys: #{KEYS.join(", ")}")
+      when "proxy"            then s.proxy = nil
+      when "concurrency"      then s.concurrency = nil
+      when "timeout"          then s.timeout = nil
+      when "output"           then s.output = nil
+      when "color"            then s.color = nil
+      when "retries"          then s.retries = nil
+      when "follow_redirects" then s.follow_redirects = nil
+      when "user_agent"       then s.user_agent = nil
+      else                         raise ValidationError.new("unknown key: #{key}", "keys: #{KEYS.join(", ")}")
       end
       s.save
       Logger.success "unset #{key}"
@@ -116,6 +131,12 @@ module Authz0::CLI
     private def positive_int(value : String, key : String) : Int32
       n = value.to_i?
       raise ValidationError.new("#{key} must be a positive integer: #{value}") if n.nil? || n < 1
+      n
+    end
+
+    private def non_negative_int(value : String, key : String) : Int32
+      n = value.to_i?
+      raise ValidationError.new("#{key} must be an integer >= 0: #{value}") if n.nil? || n < 0
       n
     end
 
