@@ -1,3 +1,5 @@
+require "./errors"
+
 module Authz0
   # Extracts headers and cookies from a `curl` command line — the exact string
   # browsers and Burp produce via "Copy as cURL". Lets pentesters lift a real
@@ -116,6 +118,11 @@ module Authz0
           end
         end
         i += 1
+      end
+      # An unterminated quote would otherwise swallow following arguments into
+      # one token (leaking content into a header value). Surface it instead.
+      if in_single || in_double
+        raise ValidationError.new("unbalanced quote in curl command — check the pasted string")
       end
       tokens << buf.to_s if has_token
       tokens

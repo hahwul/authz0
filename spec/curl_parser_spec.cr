@@ -27,4 +27,10 @@ describe Authz0::CurlParser do
     parsed.headers.should be_empty
     parsed.cookies.should be_empty
   end
+
+  it "raises on an unbalanced quote instead of swallowing later args" do
+    expect_raises(Authz0::ValidationError, /unbalanced quote/) do
+      Authz0::CurlParser.parse("curl https://x -H 'Authorization: Bearer abc")
+    end
+  end
 end

@@ -74,7 +74,7 @@ module Authz0::CLI
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
         p.on("--only-findings", "Report only X (finding) / ? rows") { only_findings = true }
-        p.on("--severity LEVEL", "Show only findings >= this severity (high|low)") do |v|
+        p.on("--severity LEVEL", "Show only findings of this severity (high=unauthorized, low=over-restrictive)") do |v|
           s = v.downcase
           raise ValidationError.new("--severity must be 'high' or 'low': #{v}") unless ["high", "low"].includes?(s)
           severity_filter = s
@@ -187,7 +187,9 @@ module Authz0::CLI
       display = results
       display = display.reject { |r| r.verdict == "O" } if only_findings
       if sev = severity_filter
-        display = sev == "high" ? display.select(&.unauthorized?) : display.select(&.vulnerable?)
+        # Exact severity (the two finding kinds are mutually exclusive), so
+        # `--severity low` isn't just a synonym for --only-findings.
+        display = sev == "high" ? display.select(&.unauthorized?) : display.select(&.over_restrictive?)
       end
       case sort_by_field
       when "severity" # most dangerous first, stable on scan order
