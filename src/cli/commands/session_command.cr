@@ -139,9 +139,27 @@ module Authz0::CLI
         {"urls", session.urls.size.to_s},
         {"creds", session.creds.map(&.display_role).join(", ").presence || "-"},
         {"asserts", session.asserts.size.to_s},
+        {"last_scan", last_scan(session) || "-"},
         {"path", session.dir},
       ])
       Logger.warn "creds.json is world-readable — run `chmod 600 #{session.creds_path}`" if session.creds_world_readable?
+    end
+
+    # Summarize the most recent archived scan (timestamp + finding counts), or
+    # nil if the session has never been scanned.
+    private def last_scan(session) : String?
+      dir = session.results_dir
+      return nil unless File.directory?(dir)
+      latest = Dir.glob(File.join(dir, "*.json")).sort.last?
+      return nil if latest.nil?
+      doc = JSON.parse(File.read(latest))
+      s = doc["summary"]?
+      return nil if s.nil?
+      findings = s["findings"]?.try(&.as_i?) || 0
+      unauth = s["unauthorized"]?.try(&.as_i?) || 0
+      "#{File.basename(latest, ".json")}  (#{findings} findings, #{unauth} unauthorized)"
+    rescue
+      nil
     end
 
     private def delete(args)
