@@ -48,6 +48,7 @@ require "./store/session_store"
 require "./scan/http_client"
 require "./scan/asserter"
 require "./scan/scanner"
+require "./scan/triage"
 
 require "./importers/base"
 require "./importers/urls"

@@ -195,27 +195,10 @@ module Authz0::CLI
       summary = Report::Summary.new(results)
 
       # Findings whose identity wasn't in the baseline → newly introduced.
-      new_ids = Set(String).new
-      if baseline_path
-        results.each { |r| new_ids << r.identity if r.vulnerable? && !baseline_ids.includes?(r.identity) }
-      end
+      new_ids = baseline_path ? Scan::Triage.new_finding_ids(results, baseline_ids) : Set(String).new
 
-      display = results
-      display = display.reject { |r| r.verdict == "O" } if only_findings
-      display = display.select { |r| new_ids.includes?(r.identity) } if only_new
-      if sev = severity_filter
-        # Exact severity (the two finding kinds are mutually exclusive), so
-        # `--severity low` isn't just a synonym for --only-findings.
-        display = sev == "high" ? display.select(&.unauthorized?) : display.select(&.over_restrictive?)
-      end
-      case sort_by_field
-      when "severity" # most dangerous first, stable on scan order
-        display = display.sort_by { |r| {severity_rank(r), r.index} }
-      when "latency" # slowest first
-        display = display.sort_by { |r| -r.elapsed_ms }
-      when "status"
-        display = display.sort_by { |r| {r.status_code, r.index} }
-      end
+      display = Scan::Triage.filter(results, only_findings, severity_filter, only_new, new_ids)
+      display = Scan::Triage.sort(display, sort_by_field)
 
       # Report → stdout. Color only for the interactive table.
       color = format.table? && STDOUT.tty? && Logger.color_enabled?
@@ -320,16 +303,6 @@ module Authz0::CLI
         "anonymous"
       else
         "#{creds.size} role#{creds.size == 1 ? "" : "s"}"
-      end
-    end
-
-    # 0 = unauthorized (high), 1 = over-restrictive (low), 2 = everything else,
-    # so `--sort severity` surfaces real breaches first.
-    private def severity_rank(r : Result) : Int32
-      case r.severity
-      in Result::Severity::High then 0
-      in Result::Severity::Low  then 1
-      in Result::Severity::None then 2
       end
     end
 
