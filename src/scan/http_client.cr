@@ -130,6 +130,8 @@ module Authz0
       private def resolve_redirect(base : URI, location : String) : String
         loc = location.strip
         return loc if loc.starts_with?("http://") || loc.starts_with?("https://")
+        # Protocol-relative ("//host/path") inherits the current scheme.
+        return "#{base.scheme}:#{loc}" if loc.starts_with?("//")
         origin = String.build do |s|
           s << base.scheme << "://" << base.host
           p = base.port
