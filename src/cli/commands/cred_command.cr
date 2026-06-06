@@ -32,6 +32,9 @@ module Authz0::CLI
     Options:
       --header "K: V"   Auth header (repeatable). Value "env:NAME" reads $NAME.
       --cookie "k=v"    Cookie (repeatable). Value "env:NAME" reads $NAME.
+      --basic user:pass Set HTTP Basic auth (Authorization: Basic …)
+      --from-curl CURL  Import headers + cookies from a 'copy as cURL' string
+      --from-har FILE   Extract auth headers + cookies from a HAR capture
       --auth-type T     Informational label (bearer/cookie/apikey/…)
     USAGE
 

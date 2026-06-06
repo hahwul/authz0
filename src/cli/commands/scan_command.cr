@@ -67,7 +67,7 @@ module Authz0::CLI
         end
         p.on("--proxy URL", "Route through an HTTP proxy (e.g. Burp)") { |v| proxy = v }
         p.on("-L", "--follow-redirects", "Follow 3xx redirects (up to --max-redirects)") { follow = 10 if follow == 0 }
-        p.on("--max-redirects N", "Max redirect hops to follow (implies -L)") { |v| follow = parse_int(v, "--max-redirects", min: 0) }
+        p.on("--max-redirects N", "Max redirect hops to follow (0 = don't follow; >0 implies -L)") { |v| follow = parse_int(v, "--max-redirects", min: 0) }
         p.on("--retries N", "Retry transient failures (timeout/429/503) N times") { |v| retries = parse_int(v, "--retries", min: 0) }
         p.on("--user-agent UA", "Override the User-Agent header") { |v| user_agent = v }
         p.on("--anon", "Also probe each target anonymously (no credentials)") { include_anon = true }

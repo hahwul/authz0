@@ -23,8 +23,10 @@ module Authz0::CLI
 
     Rule options (each adds a rule; repeatable):
       --success-status "200,201,204"   Codes that mean accessible
+      --success-header "X-Auth: ok"    Response header (name or name:substr) means accessible
       --fail-status 403                Code that means NOT accessible
       --fail-regex "Access denied"     Body match means NOT accessible
+      --fail-header "WWW-Authenticate" Response header means NOT accessible
       --fail-size 1234                 ~byte size that means NOT accessible
       --fail-size-margin 50            Tolerance for --fail-size
       --type T --value V               Generic rule
@@ -153,15 +155,23 @@ module Authz0::CLI
       raise ValidationError.new("missing <index|type> argument") if token.nil?
       asserts = session.asserts
 
-      if idx = token.lstrip('#').to_i?
-        raise NotFoundError.new("no assert at index #{idx}") unless idx >= 0 && idx < asserts.size
+      stripped = token.lstrip('#')
+      forced_index = token.starts_with?('#')
+      idx = stripped.to_i?
+
+      if idx && idx >= 0 && idx < asserts.size
         removed = asserts.delete_at(idx)
         session.save_asserts(asserts)
         Logger.success "removed ##{idx} (#{removed.type} = #{removed.value})"
+      elsif forced_index
+        # An explicit '#N' is unambiguously an index — don't fall back to type.
+        raise NotFoundError.new("no assert at index #{stripped}")
       else
+        # A bare token (even a numeric one like a "200" rule type) falls back to
+        # removing by type when it isn't an in-range index.
         before = asserts.size
         asserts.reject! { |a| a.type == token }
-        raise NotFoundError.new("no assert of type '#{token}'") if asserts.size == before
+        raise NotFoundError.new("no assert at index or of type '#{token}'") if asserts.size == before
         session.save_asserts(asserts)
         Logger.success "removed #{before - asserts.size} rule(s) of type '#{token}'"
       end

@@ -65,7 +65,10 @@ module Authz0
           needle = value[(idx + 1)..].strip.downcase
           actual = headers[name]?
           return false if actual.nil?
-          needle.empty? || actual.downcase.includes?(needle)
+          return true if needle.empty?
+          # Repeated headers are stored newline-joined; test each value on its
+          # own so a needle can't match across the join between two values.
+          actual.downcase.split('\n').any?(&.includes?(needle))
         else
           headers.has_key?(value.strip.downcase)
         end

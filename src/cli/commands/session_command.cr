@@ -222,6 +222,10 @@ module Authz0::CLI
       session = open_session(positional[0]?)
       file = positional[1]?
       raise ValidationError.new("missing <file> argument", "use '-' for stdout") if file.nil?
+      if file != "-"
+        dir = File.dirname(file)
+        raise ValidationError.new("output directory does not exist: #{dir}") unless dir.empty? || File.directory?(dir)
+      end
 
       bundle = JSON.build(indent: "  ") do |json|
         json.object do
@@ -299,8 +303,19 @@ module Authz0::CLI
       session.save_creds(creds)
       session.save_asserts(asserts)
       Logger.success "imported session '#{session.name}' (#{session.urls.size} urls, #{session.creds.size} creds)"
+      if creds.any? { |c| masked_credential?(c) }
+        Logger.warn "this bundle appears to have been exported with --redact — credential values are masked and will NOT authenticate; re-add them with `authz0 cred add #{session.name} ...`"
+      end
     rescue ex : JSON::ParseException
       raise ValidationError.new("session bundle is not valid JSON or does not match the expected schema: #{ex.message}")
+    end
+
+    # Heuristic: does this credential carry masked placeholder values (from a
+    # --redact export)? Masking uses a U+2026 ellipsis or an all-asterisks run.
+    private def masked_credential?(cred : Credential) : Bool
+      (cred.headers.values + cred.cookies.values).any? do |v|
+        v.includes?('…') || (!v.empty? && v.matches?(/\A\*+\z/))
+      end
     end
 
     # Re-serialize a bundle array field as JSON, tolerating a missing or null

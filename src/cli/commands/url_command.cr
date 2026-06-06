@@ -57,6 +57,7 @@ module Authz0::CLI
       allow_roles : Array(String),
       deny_roles : Array(String),
       headers : Hash(String, String),
+      remove_headers : Array(String),
       alias_label : String?,
       tags : Array(String),
       path : String?,
@@ -70,6 +71,7 @@ module Authz0::CLI
       allow_roles = [] of String
       deny_roles = [] of String
       headers = {} of String => String
+      remove_headers = [] of String
       alias_label : String? = nil
       tags = [] of String
       new_path : String? = nil
@@ -81,12 +83,16 @@ module Authz0::CLI
         p.on("--path P", "Change the path/URL (update only)") { |v| new_path = v; seen << "path" }
         p.on("--method M", "HTTP method") { |v| method = Validator.http_method!(v); seen << "method" }
         p.on("--body TEXT", "Request body") { |v| body = v; seen << "body" }
-        p.on("--content-type T", "json | form") { |v| content_type = v; seen << "content_type" }
+        p.on("--content-type T", "json | form") { |v| content_type = normalize_content_type(v); seen << "content_type" }
         p.on("--allow-role R", "Roles allowed (repeatable, comma-ok)") { |v| allow_roles.concat(Validator.csv(v)); seen << "allow_roles" }
         p.on("--deny-role R", "Roles denied (repeatable, comma-ok)") { |v| deny_roles.concat(Validator.csv(v)); seen << "deny_roles" }
-        p.on("--header HEADER", "Header 'K: V' (repeatable)") do |v|
+        p.on("--header HEADER", "Header 'K: V' (repeatable; update merges)") do |v|
           k, val = Validator.header!(v)
           headers[k] = val
+          seen << "headers"
+        end
+        p.on("--remove-header NAME", "Delete a header by name (update only, repeatable)") do |v|
+          remove_headers << v.strip
           seen << "headers"
         end
         p.on("--alias TEXT", "Display label") { |v| alias_label = v; seen << "alias" }
@@ -96,7 +102,19 @@ module Authz0::CLI
       end
 
       UrlOpts.new(method, body, content_type, allow_roles.uniq, deny_roles.uniq,
-        headers, alias_label, tags.uniq, new_path, seen, positional)
+        headers, remove_headers.uniq, alias_label, tags.uniq, new_path, seen, positional)
+    end
+
+    # --content-type is advertised as `json | form` but was stored unchecked,
+    # so a typo or a full MIME silently sent the wrong Content-Type. Normalize
+    # the common forms and reject anything else.
+    private def normalize_content_type(raw : String) : String
+      case raw.strip.downcase
+      when "json", "application/json"                  then "json"
+      when "form", "application/x-www-form-urlencoded" then "form"
+      else
+        raise ValidationError.new("--content-type must be 'json' or 'form': #{raw}")
+      end
     end
 
     private def add(args)
@@ -229,7 +247,10 @@ module Authz0::CLI
       url.deny_roles = o.deny_roles if o.seen.includes?("deny_roles")
       url.alias = o.alias_label if o.seen.includes?("alias")
       url.tags = o.tags if o.seen.includes?("tags")
-      o.headers.each { |k, v| url.headers[k] = v } if o.seen.includes?("headers")
+      if o.seen.includes?("headers")
+        o.headers.each { |k, v| url.headers[k] = v }
+        o.remove_headers.each { |name| url.headers.delete(name) }
+      end
 
       # Re-key the id when the request shape changed so it stays stable.
       new_id = ShortId.for(url.method, url.path, url.body || "")

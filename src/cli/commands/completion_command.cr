@@ -34,12 +34,13 @@ module Authz0::CLI
           return
         fi
         case "${COMP_WORDS[1]}" in
-          session) COMPREPLY=( $(compgen -W "new list show set delete rename clone" -- "$cur") ) ;;
+          session) COMPREPLY=( $(compgen -W "new list show set delete rename clone export import" -- "$cur") ) ;;
           url)     COMPREPLY=( $(compgen -W "add list show update remove" -- "$cur") ) ;;
           cred)    COMPREPLY=( $(compgen -W "add list update remove" -- "$cur") ) ;;
           assert)  COMPREPLY=( $(compgen -W "add list remove" -- "$cur") ) ;;
+          results) COMPREPLY=( $(compgen -W "list show clean" -- "$cur") ) ;;
           config)  COMPREPLY=( $(compgen -W "list get set unset" -- "$cur") ) ;;
-          import)  COMPREPLY=( $(compgen -W "openapi har burp urls postman" -- "$cur") ) ;;
+          import)  COMPREPLY=( $(compgen -W "auto openapi har burp urls postman" -- "$cur") ) ;;
           export)  COMPREPLY=( $(compgen -W "yaml" -- "$cur") ) ;;
           completion) COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") ) ;;
         esac
@@ -61,12 +62,13 @@ module Authz0::CLI
           return
         fi
         case "${words[2]}" in
-          session) compadd -- new list show set delete rename clone ;;
+          session) compadd -- new list show set delete rename clone export import ;;
           url)     compadd -- add list show update remove ;;
           cred)    compadd -- add list update remove ;;
           assert)  compadd -- add list remove ;;
+          results) compadd -- list show clean ;;
           config)  compadd -- list get set unset ;;
-          import)  compadd -- openapi har burp urls postman ;;
+          import)  compadd -- auto openapi har burp urls postman ;;
           export)  compadd -- yaml ;;
           completion) compadd -- bash zsh fish ;;
         esac
@@ -81,12 +83,13 @@ module Authz0::CLI
       #   authz0 completion fish > ~/.config/fish/completions/authz0.fish
       complete -c authz0 -f
       complete -c authz0 -n __fish_use_subcommand -a "session url cred assert scan results stats import export doctor config completion version help"
-      complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone"
+      complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone export import"
       complete -c authz0 -n "__fish_seen_subcommand_from url" -a "add list show update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from cred" -a "add list update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from assert" -a "add list remove"
+      complete -c authz0 -n "__fish_seen_subcommand_from results" -a "list show clean"
       complete -c authz0 -n "__fish_seen_subcommand_from config" -a "list get set unset"
-      complete -c authz0 -n "__fish_seen_subcommand_from import" -a "openapi har burp urls postman"
+      complete -c authz0 -n "__fish_seen_subcommand_from import" -a "auto openapi har burp urls postman"
       complete -c authz0 -n "__fish_seen_subcommand_from export" -a "yaml"
       complete -c authz0 -n "__fish_seen_subcommand_from completion" -a "bash zsh fish"
       FISH

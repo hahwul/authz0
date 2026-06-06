@@ -74,7 +74,15 @@ module Authz0
     private def pad(cell : String, width : Int32, align : Symbol) : String
       gap = width - Table.display_width(cell)
       gap = 0 if gap < 0
-      align == :right ? (" " * gap) + cell : cell + (" " * gap)
+      case align
+      when :right
+        (" " * gap) + cell
+      when :center
+        left = gap // 2
+        (" " * left) + cell + (" " * (gap - left))
+      else
+        cell + (" " * gap)
+      end
     end
 
     # Terminal display width of a string: most East-Asian / fullwidth glyphs
@@ -166,7 +174,11 @@ module Authz0
       String.build do |io|
         io << "| " << esc_headers.map_with_index { |h, i| pad(h, widths[i], @aligns[i]) }.join(" | ") << " |" << '\n'
         sep = widths.map_with_index do |w, i|
-          @aligns[i] == :right ? "-" * (w + 1) + ":" : "-" * (w + 2)
+          case @aligns[i]
+          when :right  then "-" * (w + 1) + ":"
+          when :center then ":" + "-" * w + ":"
+          else              "-" * (w + 2)
+          end
         end
         io << "|" << sep.join("|") << "|" << '\n'
         esc_rows.each_with_index do |row, ri|

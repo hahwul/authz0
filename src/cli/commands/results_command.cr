@@ -83,14 +83,17 @@ module Authz0::CLI
         end
 
       content = File.read(target)
-      if fmt_name = output_name
-        format = Report::Format.parse?(fmt_name)
-        raise ValidationError.new("unknown output format: #{fmt_name}", "one of: #{Report::Format.names.join(", ")}") if format.nil?
-        results = parse_results(content)
-        puts Report.render(results, format, format.table? && STDOUT.tty? && Logger.color_enabled?)
-      else
-        print content
-      end
+      # Default to a readable table (matching live `scan`), not the raw stored
+      # JSON; `-o json` re-renders the structured form.
+      format =
+        if fmt_name = output_name
+          Report::Format.parse?(fmt_name) ||
+            raise(ValidationError.new("unknown output format: #{fmt_name}", "one of: #{Report::Format.names.join(", ")}"))
+        else
+          Report::Format::Table
+        end
+      results = parse_results(content)
+      puts Report.render(results, format, format.table? && STDOUT.tty? && Logger.color_enabled?)
     end
 
     private def clean(args)

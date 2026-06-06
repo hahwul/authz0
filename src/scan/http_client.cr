@@ -353,7 +353,10 @@ module Authz0
 
       private def to_response(response : HTTP::Client::Response, body : String) : HttpResponse
         hdrs = {} of String => String
-        response.headers.each { |name, values| hdrs[name.downcase] = values.join(", ") }
+        # Join repeated header values with a newline (illegal inside a real
+        # header value), so the asserter can test each value independently
+        # instead of substring-matching across a synthetic ", " seam.
+        response.headers.each { |name, values| hdrs[name.downcase] = values.join("\n") }
         HttpResponse.new(response.status_code, body, body.bytesize.to_i64,
           redirect_location: response.headers["Location"]?, headers: hdrs)
       end

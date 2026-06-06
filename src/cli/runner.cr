@@ -180,7 +180,9 @@ module Authz0
       ]
 
       private def print_help
-        return if Logger.quiet?
+        # Help is the explicitly requested output, not incidental progress
+        # chatter, so print it even under -q/--quiet (otherwise `authz0 help -q`
+        # is a silent no-op).
         color = Logger.color_enabled?
 
         puts ""

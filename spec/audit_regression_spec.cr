@@ -171,6 +171,28 @@ describe "audit regressions (wave 2)" do
   end
 end
 
+# ---- Wave 3 (LOW) -------------------------------------------------------
+describe "audit regressions (wave 3)" do
+  it "centers :center columns in markdown instead of left-aligning (#54)" do
+    t = Authz0::Table.new(["A", "B"])
+    t.align([:left, :center])
+    t.add(["x", "y"])
+    md = t.render(Authz0::Table::Style::Markdown)
+    md.should contain(":-")         # center separator carries a leading colon
+    md.lines[1].should contain(":") # the separator row has a center marker
+  end
+
+  it "matches a multi-value header per value, not across the join seam (#46)" do
+    # Two values joined; a needle that straddles the seam must NOT match.
+    resp = Authz0::Scan::HttpResponse.new(200, "ok", 2_i64,
+      headers: {"set-cookie" => "a=1\nb=2"})
+    straddle = [Authz0::Assertion.new("success-header", "Set-Cookie: 1\nb")]
+    real = [Authz0::Assertion.new("success-header", "Set-Cookie: b=2")]
+    Authz0::Scan::Asserter.accessible?(resp, straddle).should be_false
+    Authz0::Scan::Asserter.accessible?(resp, real).should be_true
+  end
+end
+
 # ---- CLI-level regressions (drive the real binary) ----------------------
 describe "audit regressions (CLI)" do
   it "exits non-zero when every probe errors (no false 'clean' pass)" do
@@ -242,6 +264,34 @@ describe "audit regressions (CLI)" do
       r = CLISpec.run(["doctor"], home)
       r.status.should eq(1)
       r.stdout.should contain("broken")
+    end
+  end
+
+  it "validates --content-type instead of silently sending the wrong one (#40)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      bad = CLISpec.run(["url", "add", "s", "/a", "--content-type", "jsno", "--body", "{}"], home)
+      bad.status.should eq(2)
+      # a full MIME is normalized to the tag, not rejected
+      CLISpec.run(["url", "add", "s", "/b", "--content-type", "application/json", "--body", "{}"], home).status.should eq(0)
+    end
+  end
+
+  it "prints help even under -q (#42)" do
+    SpecHelper.with_temp_home do |home|
+      r = CLISpec.run(["help", "-q"], home)
+      r.status.should eq(0)
+      r.stdout.should contain("Commands:")
+    end
+  end
+
+  it "removes a numeric-named assert type when it isn't a valid index (#31)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["assert", "add", "s", "--type", "200", "--value", "foo"], home)
+      r = CLISpec.run(["assert", "remove", "s", "200"], home)
+      r.status.should eq(0)
+      CLISpec.run(["assert", "list", "s"], home).stdout.should_not contain("200")
     end
   end
 end
