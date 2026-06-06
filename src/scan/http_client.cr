@@ -44,7 +44,7 @@ module Authz0
       RETRY_BACKOFF_MS = 250
 
       def initialize(@timeout : Int32 = 10, @proxy : String? = nil, @insecure : Bool = true,
-                     @follow_redirects : Int32 = 0, @retries : Int32 = 0)
+                     @follow_redirects : Int32 = 0, @retries : Int32 = 0, @user_agent : String? = nil)
       end
 
       # Issue the request, retrying transient failures (transport errors, 429,
@@ -243,7 +243,7 @@ module Authz0
 
       private def apply_defaults(headers : HTTP::Headers, uri : URI)
         headers["Host"] = host_header(uri) unless headers.has_key?("Host")
-        headers["User-Agent"] = DEFAULT_USER_AGENT unless headers.has_key?("User-Agent")
+        headers["User-Agent"] = (@user_agent || DEFAULT_USER_AGENT) unless headers.has_key?("User-Agent")
         # Ask for an un-encoded body so size/regex assertions see real bytes.
         headers["Accept-Encoding"] = "identity" unless headers.has_key?("Accept-Encoding")
         headers["Accept"] = "*/*" unless headers.has_key?("Accept")
