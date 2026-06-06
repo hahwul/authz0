@@ -29,6 +29,7 @@ module Authz0::CLI
       retries = 0
       user_agent : String? = nil
       include_anon = false
+      dry_run = false
       insecure = true
       progress = true
       only_findings = false
@@ -61,6 +62,7 @@ module Authz0::CLI
         p.on("--retries N", "Retry transient failures (timeout/429/503) N times") { |v| retries = parse_int(v, "--retries", min: 0) }
         p.on("--user-agent UA", "Override the User-Agent header") { |v| user_agent = v }
         p.on("--anon", "Also probe each target anonymously (no credentials)") { include_anon = true }
+        p.on("--dry-run", "Preview the probe matrix without sending requests") { dry_run = true }
         p.on("-o FORMAT", "--output FORMAT", "table|plain|json|markdown|sarif|html|csv") { |v| output_name = v }
         p.on("--save FILE", "Also write the report to FILE") { |v| save_path = v }
         p.on("--no-save-results", "Don't archive results JSON in the session") { save_results = false }
@@ -121,6 +123,19 @@ module Authz0::CLI
       end
 
       via = base_url.empty? ? "" : " via #{base_url}"
+
+      # Preview the probe matrix without sending any requests — useful before a
+      # large or mutating (POST/DELETE) run.
+      if dry_run
+        probe_creds = creds.empty? ? [Credential.new("")] : creds
+        Logger.info "dry run: #{source_label} — #{targets.size} urls × #{creds_label(creds)} = #{targets.size * probe_creds.size} probes#{via}"
+        targets.each do |t|
+          resolved = t.resolve(base_url)
+          probe_creds.each { |c| puts "#{t.method.ljust(6)} #{resolved}  [#{c.display_role}]" }
+        end
+        return
+      end
+
       Logger.info "scanning #{source_label} — #{targets.size} urls × #{creds_label(creds)}#{via}"
       Logger.warn "TLS verification disabled (--secure to enforce)" if insecure && !Logger.quiet?
 
