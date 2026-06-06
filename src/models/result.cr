@@ -61,6 +61,12 @@ module Authz0
       @verdict == "X"
     end
 
+    # Stable identity of a probe (method + url + role), independent of status
+    # or timing — used to diff a scan against a baseline.
+    def identity : String
+      "#{@method} #{@url} [#{@role}]"
+    end
+
     # The dangerous finding: a role accessed something it wasn't expected to.
     def unauthorized? : Bool
       vulnerable? && !@expected_access && @accessible

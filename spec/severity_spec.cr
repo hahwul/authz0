@@ -27,6 +27,10 @@ describe "finding severity" do
     result(false, false, "?").severity.should eq(Authz0::Result::Severity::None)
   end
 
+  it "has a stable identity (method+url+role) for baseline diffing" do
+    result(true, false, "X").identity.should eq("GET https://x/r [user]")
+  end
+
   describe Authz0::Report::Summary do
     it "counts the two finding kinds separately" do
       results = [

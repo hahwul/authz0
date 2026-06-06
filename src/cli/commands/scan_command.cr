@@ -1,5 +1,6 @@
 require "option_parser"
 require "file_utils"
+require "json"
 require "../helpers"
 require "../../models/credential"
 require "../../scan/scanner"
@@ -41,6 +42,9 @@ module Authz0::CLI
       save_path : String? = nil
       save_results = true
       fail_on_findings = false
+      baseline_path : String? = nil
+      fail_on_new = false
+      only_new = false
       template_path : String? = nil
 
       ad_hoc_role : String? = nil
@@ -88,6 +92,9 @@ module Authz0::CLI
         p.on("--secure", "Enforce TLS verification") { insecure = false }
         p.on("--no-progress", "Suppress live per-request progress") { progress = false }
         p.on("--fail-on-findings", "Exit non-zero when findings exist") { fail_on_findings = true }
+        p.on("--baseline FILE", "Compare against a prior results JSON ('latest' = session's last scan)") { |v| baseline_path = v }
+        p.on("--fail-on-new", "Exit non-zero only when NEW findings appear (needs --baseline)") { fail_on_new = true }
+        p.on("--only-new", "Report only findings absent from the baseline") { only_new = true }
         p.on("-r NAME", "--role NAME", "Ad-hoc role for an inline credential") { |v| ad_hoc_role = v }
         p.on("-H HEADER", "--header HEADER", "Header for the ad-hoc role (repeatable)") do |v|
           k, val = Validator.header!(v)
@@ -148,6 +155,9 @@ module Authz0::CLI
         raise ValidationError.new("no urls match '#{pat}'") if targets.empty?
       end
 
+      raise ValidationError.new("--only-new/--fail-on-new need --baseline") if (only_new || fail_on_new) && baseline_path.nil?
+      baseline_ids = baseline_path ? load_baseline(baseline_path.not_nil!, session) : Set(String).new
+
       via = base_url.empty? ? "" : " via #{base_url}"
 
       # Preview the probe matrix without sending any requests — useful before a
@@ -181,11 +191,18 @@ module Authz0::CLI
       results = scanner.run(targets, creds, asserts, base_url)
 
       # Summary + archive always reflect the FULL scan; --only-findings /
-      # --severity only narrow what's *displayed*.
+      # --severity / --only-new only narrow what's *displayed*.
       summary = Report::Summary.new(results)
+
+      # Findings whose identity wasn't in the baseline → newly introduced.
+      new_ids = Set(String).new
+      if baseline_path
+        results.each { |r| new_ids << r.identity if r.vulnerable? && !baseline_ids.includes?(r.identity) }
+      end
 
       display = results
       display = display.reject { |r| r.verdict == "O" } if only_findings
+      display = display.select { |r| new_ids.includes?(r.identity) } if only_new
       if sev = severity_filter
         # Exact severity (the two finding kinds are mutually exclusive), so
         # `--severity low` isn't just a synonym for --only-findings.
@@ -222,16 +239,44 @@ module Authz0::CLI
       end
 
       if summary.findings > 0
-        if summary.unauthorized > 0
+        if baseline_path
+          n = new_ids.size
+          msg = "#{summary.findings} finding#{summary.findings == 1 ? "" : "s"} (#{n} new vs baseline)"
+          n > 0 ? Logger.error(msg) : Logger.warn(msg)
+        elsif summary.unauthorized > 0
           extra = summary.over_restrictive > 0 ? " (+#{summary.over_restrictive} over-restrictive)" : ""
           Logger.error "#{summary.unauthorized} unauthorized-access finding#{summary.unauthorized == 1 ? "" : "s"}#{extra} — review the red rows"
         else
           Logger.warn "#{summary.over_restrictive} over-restrictive finding#{summary.over_restrictive == 1 ? "" : "s"} (no unauthorized access) — likely a broken/over-tight policy"
         end
         exit 1 if fail_on_findings
+        exit 1 if fail_on_new && new_ids.size > 0
       else
         Logger.success "no authorization findings"
       end
+    end
+
+    # Set of finding identities from a prior results JSON. "latest" reads the
+    # session's most recent archive (before this scan adds a new one).
+    private def load_baseline(path : String, session) : Set(String)
+      ids = Set(String).new
+      content =
+        if path == "latest"
+          return ids if session.nil?
+          files = Dir.glob(File.join(session.results_dir, "*.json")).sort
+          return ids if files.empty?
+          File.read(files.last)
+        else
+          raise ValidationError.new("no such baseline file: #{path}") unless File.exists?(path)
+          File.read(path)
+        end
+      doc = JSON.parse(content)
+      arr = doc["results"]?.try(&.as_a?)
+      return ids if arr.nil?
+      Array(Result).from_json(arr.to_json).each { |r| ids << r.identity if r.vulnerable? }
+      ids
+    rescue ex : JSON::ParseException
+      raise ValidationError.new("invalid baseline JSON (#{path}): #{ex.message}")
     end
 
     # Session credentials plus an optional inline (-r/-H/--cookie) identity and,
