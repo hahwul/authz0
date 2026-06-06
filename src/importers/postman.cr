@@ -13,6 +13,7 @@ module Authz0
       @vars : Hash(String, String) = {} of String => String
 
       def parse(content : String, base_url : String) : Array(TargetURL)
+        Importers.guard_size!(content, "Postman collection")
         root = JSON.parse(content)
         items = root["item"]?.try(&.as_a?)
         raise ImportError.new("not a Postman collection (no 'item' array)") if items.nil?

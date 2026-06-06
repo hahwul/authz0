@@ -10,6 +10,7 @@ module Authz0
     # accepted; absolute same-origin URLs are relativized against the session.
     class Urls
       def parse(content : String, base_url : String) : Array(TargetURL)
+        Importers.guard_size!(content, "URL list")
         targets = [] of TargetURL
         content.each_line do |raw|
           line = raw.strip

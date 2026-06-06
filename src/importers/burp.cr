@@ -10,6 +10,7 @@ module Authz0
     # and a base64 <request> blob from which we recover the request body.
     class Burp
       def parse(content : String, base_url : String) : Array(TargetURL)
+        Importers.guard_size!(content, "Burp XML")
         doc = XML.parse(content)
         targets = [] of TargetURL
 

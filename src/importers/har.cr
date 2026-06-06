@@ -48,6 +48,7 @@ module Authz0
       end
 
       def parse(content : String, base_url : String) : Array(TargetURL)
+        Importers.guard_size!(content, "HAR")
         root = Root.from_json(content)
         log = root.log
         return [] of TargetURL if log.nil?

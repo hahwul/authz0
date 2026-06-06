@@ -45,10 +45,17 @@ module Authz0
     # right exit code) when the input is too large or too deeply nested, so a
     # nesting bomb can never crash the process. Covers both flow style
     # (`{a: {a: …}}`) via bracket depth and block style via indentation depth.
-    def guard_document!(content : String, what : String = "document")
+    # Just the byte ceiling — for line/JSON/XML importers (Crystal's JSON parser
+    # already caps nesting at 512 and libxml2 guards XML, so only the size cap
+    # is missing there).
+    def guard_size!(content : String, what : String = "document")
       if content.bytesize > MAX_DOCUMENT_BYTES
         raise ImportError.new("#{what} is too large: #{content.bytesize} bytes (limit #{MAX_DOCUMENT_BYTES})")
       end
+    end
+
+    def guard_document!(content : String, what : String = "document")
+      guard_size!(content, what)
       depth = 0
       max_flow = 0
       content.each_char do |c|
