@@ -31,6 +31,7 @@ module Authz0
       ]
 
       def run(args : Array(String) = ARGV.dup)
+        trap_interrupts
         Runner.apply_globals!(args)
         # Honor a persisted `color` config setting (CLI flags / NO_COLOR still
         # win). Guarded so a corrupt config can't break unrelated commands.
@@ -96,6 +97,23 @@ module Authz0
         Logger.error "internal error: #{ex.message}"
         STDERR.puts ex.backtrace.first(8).join("\n") if Logger.debug?
         exit 70
+      end
+
+      # Exit cleanly on Ctrl-C / kill. Without an explicit trap, SIGINT does NOT
+      # interrupt a running scan (its fibers sit blocked in socket reads), so a
+      # terminal Ctrl-C is effectively ignored — you can't stop a slow scan.
+      # Trapping both also wipes any half-drawn progress line and exits with the
+      # conventional 128+signal code instead of a raw abort.
+      private def trap_interrupts
+        Signal::INT.trap { on_interrupt(130) }
+        Signal::TERM.trap { on_interrupt(143) }
+      end
+
+      private def on_interrupt(code : Int32) : NoReturn
+        STDERR.print("\r\e[2K") if STDERR.tty? # clear the progress counter line
+        Logger.error "interrupted"
+        STDERR.flush
+        exit code
       end
 
       # Option flags (across all subcommands) whose *next* argv token is a
