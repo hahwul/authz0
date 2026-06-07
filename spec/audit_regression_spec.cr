@@ -596,6 +596,24 @@ describe "usability regressions" do
     end
   end
 
+  it "inspects one assert rule with `assert show` (by index or type, + json)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["assert", "add", "s", "--success-status", "200", "--fail-status", "403"], home)
+      CLISpec.run(["assert", "show", "s", "1"], home).stdout.should contain("fail-status = 403")
+      CLISpec.run(["assert", "show", "s", "fail-status"], home).stdout.should contain("403")
+      JSON.parse(CLISpec.run(["assert", "show", "s", "0", "--json"], home).stdout)[0]["type"].as_s.should eq("success-status")
+      CLISpec.run(["assert", "show", "s", "nope"], home).status.should eq(3) # NotFound
+    end
+  end
+
+  it "accepts `session add` as an alias for `session new`" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "add", "shop", "--base-url", "https://x.test"], home).status.should eq(0)
+      CLISpec.run(["session", "list", "--json"], home).stdout.should contain("shop")
+    end
+  end
+
   it "renames session export/import to backup/restore, keeping the old names as aliases" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)

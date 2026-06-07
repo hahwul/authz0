@@ -38,7 +38,7 @@ module Authz0::CLI
     def run(args : Array(String))
       action = args.shift?
       case action
-      when "new", "create"          then new_session(args)
+      when "new", "create", "add"   then new_session(args)
       when "list", "ls"             then list(args)
       when "show", "info"           then show(args)
       when "set", "update"          then set_session(args)

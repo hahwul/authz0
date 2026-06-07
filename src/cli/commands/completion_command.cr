@@ -37,7 +37,7 @@ module Authz0::CLI
           session) COMPREPLY=( $(compgen -W "new list show set delete rename clone use backup restore" -- "$cur") ) ;;
           url)     COMPREPLY=( $(compgen -W "add list show update remove" -- "$cur") ) ;;
           cred)    COMPREPLY=( $(compgen -W "add list show update remove" -- "$cur") ) ;;
-          assert)  COMPREPLY=( $(compgen -W "add list remove" -- "$cur") ) ;;
+          assert)  COMPREPLY=( $(compgen -W "add list show remove" -- "$cur") ) ;;
           results) COMPREPLY=( $(compgen -W "list show clean" -- "$cur") ) ;;
           config)  COMPREPLY=( $(compgen -W "list get set unset" -- "$cur") ) ;;
           import)  COMPREPLY=( $(compgen -W "auto openapi har burp urls postman" -- "$cur") ) ;;
@@ -65,7 +65,7 @@ module Authz0::CLI
           session) compadd -- new list show set delete rename clone use backup restore ;;
           url)     compadd -- add list show update remove ;;
           cred)    compadd -- add list show update remove ;;
-          assert)  compadd -- add list remove ;;
+          assert)  compadd -- add list show remove ;;
           results) compadd -- list show clean ;;
           config)  compadd -- list get set unset ;;
           import)  compadd -- auto openapi har burp urls postman ;;
@@ -86,7 +86,7 @@ module Authz0::CLI
       complete -c authz0 -n "__fish_seen_subcommand_from session" -a "new list show set delete rename clone use backup restore"
       complete -c authz0 -n "__fish_seen_subcommand_from url" -a "add list show update remove"
       complete -c authz0 -n "__fish_seen_subcommand_from cred" -a "add list show update remove"
-      complete -c authz0 -n "__fish_seen_subcommand_from assert" -a "add list remove"
+      complete -c authz0 -n "__fish_seen_subcommand_from assert" -a "add list show remove"
       complete -c authz0 -n "__fish_seen_subcommand_from results" -a "list show clean"
       complete -c authz0 -n "__fish_seen_subcommand_from config" -a "list get set unset"
       complete -c authz0 -n "__fish_seen_subcommand_from import" -a "auto openapi har burp urls postman"

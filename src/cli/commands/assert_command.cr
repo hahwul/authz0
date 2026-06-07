@@ -17,9 +17,10 @@ module Authz0::CLI
     Usage: authz0 assert <action> [options]
 
     Actions:
-      add <session> [rule options]   Add one or more detection rules
-      list <session> [--json]        List rules
-      remove <session> <index|type>  Remove rule(s)
+      add <session> [rule options]      Add one or more detection rules
+      list <session> [--json]           List rules
+      show <session> <index|type> [--json]  Show matching rule(s)
+      remove <session> <index|type>     Remove rule(s)
 
     Rule options (each adds a rule; repeatable):
       --success-status "200,201,204"   Codes that mean accessible
@@ -37,6 +38,7 @@ module Authz0::CLI
       case action
       when "add"                    then add(args)
       when "list", "ls"             then list(args)
+      when "show", "info"           then show(args)
       when "remove", "rm", "delete" then remove(args)
       when nil, "-h", "--help"
         puts USAGE
@@ -146,6 +148,45 @@ module Authz0::CLI
       end
       asserts.each_with_index do |a, i|
         puts "##{i}  #{a.type} = #{a.value}"
+      end
+    end
+
+    # `authz0 assert show <session> <index|type>` — inspect the rule(s) matching
+    # an index ("#N"/"N") or a type name. Mirrors `url show` / `cred show`.
+    private def show(args)
+      json_mode = false
+      positional = [] of String
+      OptionParser.parse(args) do |p|
+        p.banner = "Usage: authz0 assert show <session> <index|type> [--json]"
+        p.on("--json", "Output as JSON") { json_mode = true }
+        p.on("-h", "--help", "Show help") { puts p; exit 0 }
+        p.unknown_args { |before, _| positional = before }
+      end
+      name, rest = split_session(positional, needs: 1)
+      session = open_session(name)
+      token = rest[0]?
+      raise ValidationError.new("missing <index|type> argument") if token.nil?
+      asserts = session.asserts
+
+      matched = match_asserts(asserts, token)
+      raise NotFoundError.new("no assert at index or of type '#{token}' in session '#{session.name}'") if matched.empty?
+      if json_mode
+        puts matched.to_pretty_json
+        return
+      end
+      matched.each do |a|
+        i = asserts.index(a) || 0
+        puts "##{i}  #{a.type} = #{a.value}"
+      end
+    end
+
+    # Resolve an index ("#N"/"N", when in range) or a type name to assert rules.
+    private def match_asserts(asserts : Array(Assertion), token : String) : Array(Assertion)
+      idx = token.lstrip('#').to_i?
+      if idx && idx >= 0 && idx < asserts.size
+        [asserts[idx]]
+      else
+        asserts.select { |a| a.type == token }
       end
     end
 
