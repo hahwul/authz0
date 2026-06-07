@@ -123,7 +123,8 @@ module Authz0
       # unaffected.
       VALUE_FLAGS = %w[
         --base-url --description --method --body --content-type --allow-role
-        --deny-role --header -H --alias --tag --cookie --auth-type --role -r
+        --deny-role --header -H --remove-header --alias --tag --cookie
+        --auth-type --role -r
         --concurrency --timeout --delay --proxy --output -o --save
         --success-status --fail-status --fail-regex --fail-size
         --fail-size-margin --type --value
