@@ -12,7 +12,10 @@ module Authz0
   class TargetURL
     include JSON::Serializable
 
-    property id : String
+    # Defaults to "" so a hand-edited urls.json (the README invites editing it)
+    # needn't carry the derived hash id — after_initialize fills it in from the
+    # request shape. An explicit id in the file is preserved.
+    property id : String = ""
     property path : String
     property method : String = "GET"
     property headers : Hash(String, String) = {} of String => String
@@ -38,6 +41,13 @@ module Authz0
       @headers = headers
       @tags = tags
       @id = id || ShortId.for(@method, @path, @body || "")
+    end
+
+    # Called after JSON deserialization (the generated initializer bypasses the
+    # one above). Derive the id from the request shape when the loaded file
+    # didn't carry one — so a hand-added url entry works without the hash.
+    def after_initialize
+      @id = ShortId.for(@method, @path, @body || "") if @id.empty?
     end
 
     # Resolve this target's effective absolute URL against a base. Absolute

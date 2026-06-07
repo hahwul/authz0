@@ -573,6 +573,17 @@ describe "usability regressions" do
     end
   end
 
+  it "derives a missing url id when loading a hand-edited urls.json, keeps an explicit one" do
+    urls = Array(Authz0::TargetURL).from_json(
+      %([{"path":"/admin","method":"GET","allow_roles":["admin"]},{"id":"keepme00","path":"/x"}]))
+    # README invites hand-editing; a human can't know the hash id, so it's derived.
+    urls[0].id.should eq(Authz0::ShortId.for("GET", "/admin", ""))
+    urls[0].id.should_not be_empty
+    urls[1].id.should eq("keepme00") # an explicit id is preserved (round-trip)
+    # Unknown/future fields are tolerated (forward-compat).
+    Array(Authz0::TargetURL).from_json(%([{"path":"/y","future":42}])).first.path.should eq("/y")
+  end
+
   it "uses the active session ('session use') when a command omits the name, explicit wins" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "shop", "--base-url", "https://x.test"], home)
