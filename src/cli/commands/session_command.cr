@@ -137,13 +137,21 @@ module Authz0::CLI
 
     private def list(args)
       json_mode = false
+      names_only = false
       OptionParser.parse(args) do |p|
-        p.banner = "Usage: authz0 session list [--json]"
+        p.banner = "Usage: authz0 session list [--json] [--names]"
         p.on("--json", "Output as JSON") { json_mode = true }
+        p.on("--names", "Print only session names, one per line (scripts/completion)") { names_only = true }
         p.on("-h", "--help", "Show help") { puts p; exit 0 }
       end
 
       sessions = Store::SessionStore.list
+      # Plain names for shell completion / scripting — no markers, no chatter,
+      # empty output when there are none.
+      if names_only
+        sessions.each { |s| puts s.name }
+        return
+      end
       if json_mode
         puts sessions.map(&.meta).to_pretty_json
         return

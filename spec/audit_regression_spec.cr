@@ -625,6 +625,26 @@ describe "usability regressions" do
     end
   end
 
+  it "keeps --remove-header's value instead of stripping it as a global flag" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
+      CLISpec.run(["url", "add", "s", "/x", "--header", "A: b"], home)
+      id = CLISpec.run(["url", "list", "s"], home).stdout[/\[(\w+)\]/, 1]
+      # --remove-header takes a value; the following token must be that value,
+      # not stripped as the global -q (which would leave the flag empty → exit 2).
+      CLISpec.run(["url", "update", "s", id, "--remove-header", "-q"], home).status.should eq(0)
+    end
+  end
+
+  it "lists plain session names with `session list --names` (completion/scripts)" do
+    SpecHelper.with_temp_home do |home|
+      CLISpec.run(["session", "new", "alpha", "--base-url", "https://x.test"], home)
+      CLISpec.run(["session", "new", "beta", "--base-url", "https://y.test"], home)
+      out = CLISpec.run(["session", "list", "--names"], home).stdout
+      out.lines.map(&.strip).reject(&.empty?).sort!.should eq(["alpha", "beta"])
+    end
+  end
+
   it "renames session export/import to backup/restore, keeping the old names as aliases" do
     SpecHelper.with_temp_home do |home|
       CLISpec.run(["session", "new", "s", "--base-url", "https://x.test"], home)
