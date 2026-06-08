@@ -1,5 +1,0 @@
-# authz0 — never commit secrets or scan output
-creds.json
-results/
-exports/
-*.tmp
