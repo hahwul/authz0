@@ -239,6 +239,34 @@ describe "audit regressions (rounds)" do
     line.should_not contain("user:")
   end
 
+  it "percent-encodes a raw non-ASCII path instead of failing the request (Crystal 1.22)" do
+    server = TCPServer.new("127.0.0.1", 0)
+    port = server.local_address.port
+    req_line = nil
+    done = Channel(Nil).new
+    spawn do
+      sock = server.accept
+      req_line = sock.gets
+      while (line = sock.gets) && !line.strip.empty?
+      end
+      sock << "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+      sock.flush
+      sock.close
+      done.send(nil)
+    end
+    Fiber.yield
+
+    response = Authz0::Scan::HttpClient.new.request("GET", "http://127.0.0.1:#{port}/한글?q=가", HTTP::Headers.new, nil)
+    select
+    when done.receive
+    when timeout(5.seconds) # the request never reached the server
+    end
+    server.close
+
+    response.status_code.should eq(200)
+    req_line.should eq("GET /%ED%95%9C%EA%B8%80?q=%EA%B0%80 HTTP/1.1")
+  end
+
   it "rejects non-UTF-8 import input with a clean error instead of crashing" do
     binary = String.new(Bytes[0xff, 0xfe, 0x00, 0x01])
     expect_raises(Authz0::ImportError, /UTF-8/) do

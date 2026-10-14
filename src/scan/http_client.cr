@@ -226,8 +226,7 @@ module Authz0
           # so disable the client's transparent gzip handling to keep the
           # body bytes == on-the-wire bytes for fail-size assertions.
           client.compress = false
-          target = uri.request_target
-          target = "/" if target.empty?
+          target = origin_target(uri)
           # Stream the body so we can cap it instead of letting the stdlib buffer
           # the whole thing into a String first.
           result = HttpResponse.errored("no response")
@@ -273,9 +272,7 @@ module Authz0
           end
           ssl = OpenSSL::SSL::Socket::Client.new(socket, context: tunnel_tls_context, sync_close: true, hostname: host)
           io = ssl
-          resource = uri.request_target
-          resource = "/" if resource.empty?
-          write_request(io, method, resource, headers, body)
+          write_request(io, method, origin_target(uri), headers, body)
           result = HttpResponse.errored("no response")
           HTTP::Client::Response.from_io(io) { |response| result = to_response(response, read_capped(response.body_io?)) }
           result
@@ -309,9 +306,18 @@ module Authz0
           if p = uri.port
             s << ":" << p
           end
-          rt = uri.request_target
-          s << (rt.empty? ? "/" : rt)
+          s << origin_target(uri)
         end
+      end
+
+      # Origin-form request target. Raw non-ASCII/control bytes are
+      # percent-encoded as a browser would (`%XX` and reserved chars kept):
+      # Crystal 1.22+ refuses them in `HTTP::Request`, so the direct path
+      # failed while the proxied one sent them raw.
+      private def origin_target(uri : URI) : String
+        target = uri.request_target
+        return "/" if target.empty?
+        String.build { |io| URI.encode(target, io) { |byte| 0x21 <= byte < 0x7F } }
       end
 
       # "Basic base64(user:pass)" from a proxy URL's userinfo, or nil.
