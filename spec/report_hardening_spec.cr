@@ -42,11 +42,11 @@ describe "reporter hardening" do
   end
 
   it "CSV round-trips fields containing commas, quotes and newlines" do
-    rows = [r(%(https://x/a,"q"#{"\n"}b))]
+    rows = [r("https://x/a,\"q\"\nb")]
     csv = Authz0::Report.render(rows, Authz0::Report::Format::Csv, false)
     parsed = CSV.parse(csv)
     parsed.size.should eq(2)
-    parsed[1][3].should eq(%(https://x/a,"q"#{"\n"}b))
+    parsed[1][3].should eq("https://x/a,\"q\"\nb")
   end
 
   it "HTML-escapes every rendered field, not just the url" do

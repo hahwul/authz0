@@ -51,7 +51,7 @@ jobs:
           # every scan fiber runs on one OS thread, and the per-probe TLS
           # handshake (CPU-bound) serializes — so a large HTTPS scan is stuck on
           # one core. With it, handshakes parallelize (tune via CRYSTAL_WORKERS).
-          docker run --rm -v $(pwd):/authz0 -w /authz0 --entrypoint="" crystallang/crystal:1.20.0-alpine sh -c "
+          docker run --rm -v $(pwd):/authz0 -w /authz0 --entrypoint="" crystallang/crystal:1.22.0-alpine sh -c "
             apk add --no-cache git yaml-dev yaml-static openssl-dev openssl-libs-static zlib-dev zlib-static pcre2-dev &&
             shards install --production &&
             mkdir -p build &&
